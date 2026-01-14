@@ -1,0 +1,1831 @@
+<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">
+	<External>null</External>
+	<External>nil</External>
+	<Item class="Script" referent="RBX16EBCD1F9A784D2F92AACEA9D2F400DF">
+		<Properties>
+			<ProtectedString name="Source"><![CDATA[-->> VARIABLES <<--
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Icon made by icon wind from www.flaticon.com
+local toolbar = plugin:CreateToolbar("NetTest")
+local openEditorButton = toolbar:CreateButton(
+	"Toggle Editor",
+	"Toggles Text Editor Where You Can Type Event Definitions To",
+	"rbxassetid://131120349635993"
+)
+
+openEditorButton.ClickableWhenViewportHidden = true
+
+-->> TEXT INPUT SETUP <<--
+
+local WarningInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Float,
+	true,
+	false,
+	400,
+	80,
+	10,
+	10
+)
+
+-- Create new 'DockWidgetPluginGuiInfo' object
+local WidgetInfo = DockWidgetPluginGuiInfo.new(
+	Enum.InitialDockState.Float, -- Widget will be initialized in floating panel
+	false, -- Widget will be initially enabled
+	false, -- Don't override the previous enabled state
+	200, -- Default width of the floating window
+	300, -- Default height of the floating window
+	100, -- Minimum width of the floating window (optional)
+	100 -- Minimum height of the floating window (optional)
+)
+
+-- Create new widget GUI
+local DockWidget = plugin:CreateDockWidgetPluginGuiAsync("NetTestWidget", WidgetInfo)
+
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(1, 0, 1, 0)
+TextBox.BackgroundColor3 = Color3.new(0.16, 0.13, 0.29)
+TextBox.ZIndex = 0
+TextBox.TextColor3 = Color3.new(1, 1, 1)
+TextBox.ClearTextOnFocus = false
+TextBox.MultiLine = true
+TextBox.Text = ""
+TextBox.PlaceholderText = "Paste Net Code Here"
+TextBox.TextXAlignment = Enum.TextXAlignment.Left
+TextBox.TextYAlignment = Enum.TextYAlignment.Top
+TextBox.Parent = DockWidget 
+
+local UIPadding = Instance.new("UIPadding")
+UIPadding.PaddingLeft = UDim.new(0, 5)
+UIPadding.PaddingRight = UDim.new(0, 5)
+UIPadding.PaddingTop = UDim.new(0, 5)
+UIPadding.PaddingBottom = UDim.new(0, 5)
+UIPadding.Parent = TextBox
+
+local ConvertButton = Instance.new("TextButton")
+ConvertButton.Size = UDim2.new(0, 40, 0, 40)
+ConvertButton.Position = UDim2.new(1, -45, 1, -45)
+ConvertButton.BackgroundColor3 = Color3.new(0.10, 0.08, 0.18)
+ConvertButton.ZIndex = 1
+ConvertButton.Text = ""
+ConvertButton.Parent = DockWidget
+
+local ConvertButtonImage = Instance.new("ImageButton")
+ConvertButtonImage.AnchorPoint = Vector2.new(.5, .5)
+ConvertButtonImage.Size = UDim2.new(.8, 0, .8, 0)
+ConvertButtonImage.Position = UDim2.new(.5, 0, .5, 0)
+ConvertButtonImage.BackgroundTransparency = 1
+ConvertButtonImage.Image = "rbxassetid://108449005858974"
+ConvertButtonImage.Parent = ConvertButton
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.new(0.06, 0.05, 0.11)
+UIStroke.Thickness = 2
+UIStroke.Parent = ConvertButton
+
+-->> PLUGIN FUNCTIONS <<--
+
+local _warningId = 0
+
+local function DisplayWarning(text: string)
+	local warningWidget = plugin:CreateDockWidgetPluginGuiAsync(`WarningWidget{_warningId}`, WarningInfo)
+	
+	local warningLabel = Instance.new("TextLabel")
+	warningLabel.Size = UDim2.new(1, 0, 1, 0)
+	warningLabel.BackgroundColor3 = Color3.new(0.16, 0.13, 0.29)
+	warningLabel.TextColor3 = Color3.new(1, 1, 1)
+	warningLabel.TextWrapped = true
+	warningLabel.Text = text
+	warningLabel.Parent = warningWidget
+	
+	local function CloseWarning()
+		warningWidget:Destroy()
+	end
+	
+	_warningId += 1
+end
+
+local function ToggleTextBox()
+	DockWidget.Enabled = not DockWidget.Enabled
+end
+
+local function ConvertNetCode()
+	local Lexer = require(script.Lexer)
+	local Parser = require(script.Parser)
+	local Generator = require(script.Generator)
+
+	local myLexer = Lexer.new(TextBox.Text)
+	local myParser = Parser.new(myLexer)
+	myParser:ParseSource()
+	
+	local myGenerator = Generator.new(myParser.Output)
+	myGenerator:GenerateAllEvents()
+	
+	local Generated = ReplicatedStorage:FindFirstChild("Generated")
+	if not Generated then
+		Generated = Instance.new("Folder")
+		Generated.Name = "Generated"
+		Generated.Parent = ReplicatedStorage
+	end
+	
+	local serverOutput = Generated:FindFirstChild("Server") or Instance.new("ModuleScript", Generated)
+	serverOutput.Name = "Server"
+	serverOutput.Source = myGenerator.ServerOutput
+	
+	local clientOutput = Generated:FindFirstChild("Client") or Instance.new("ModuleScript", Generated)
+	clientOutput.Name = "Client"
+	clientOutput.Source = myGenerator.ClientOutput
+
+	print("Successfully converted net code!")
+end
+
+local function TryConvert()
+	local success, result = pcall(ConvertNetCode)
+	if not success then
+		DisplayWarning(`Conversion failed: {result}`)
+	end
+end
+
+-->> CONNECTIONS <<--
+
+openEditorButton.Click:Connect(ToggleTextBox)
+
+ConvertButton.Activated:Connect(TryConvert)
+ConvertButtonImage.Activated:Connect(TryConvert)
+]]></ProtectedString>
+			<bool name="Disabled">false</bool>
+			<Content name="LinkedSource"><null></null></Content>
+			<token name="RunContext">0</token>
+			<string name="ScriptGuid">{86FE5833-8CFE-47DE-858B-72FBD5D5639F}</string>
+			<BinaryString name="AttributesSerialize"></BinaryString>
+			<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+			<bool name="DefinesCapabilities">false</bool>
+			<string name="Name">NetTestPlugin</string>
+			<int64 name="SourceAssetId">-1</int64>
+			<BinaryString name="Tags"></BinaryString>
+		</Properties>
+		<Item class="ModuleScript" referent="RBX56903D8B22564874AA81E664CBF5A6CD">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[-->> TOKEN TYPES <<--
+
+export type TokenType = "Whitespace"
+	| "VariableAssign"
+	| "FieldAssign"
+	| "OpenParentheses"
+	| "CloseParentheses"
+	| "OpenBraces"
+	| "CloseBraces"
+	| "Comma"
+	| "Optional"
+	| "Array"
+	| "Keyword"
+	| "Primitive"
+	| "Boolean"
+	| "Text"
+	| "EndOfFile"
+	| "Unknown"
+
+export type Primitive = "u8" | "u16" | "u32"
+	| "i8" | "i16" | "i32"
+	| "f32" | "f64"
+	| "string" | "buffer" | "boolean"
+	| "Vector2" | "Vector3" | "CFrame"
+	| "Color3" | "BrickColor"
+
+export type Modifier = "Optional" | "Array"
+
+export type Token = {
+	Type: TokenType,
+	Value: string,
+	Start: number,
+	End: number,
+}
+
+export type TokenPatternData = {
+	Type: TokenType,
+	Pattern: string,
+	Validate: ((token: string) -> boolean)?,	-- If Validate function is provided, it checks whether the token is 
+	-- actually of the type or if it is just a pattern coincidence
+}
+
+export type Lexer = {
+	-- Members:
+	Source: string,
+	Size: number,
+	Cursor: number,
+
+	-- Methods:
+	TryConsume: (self: Lexer, type: TokenType) -> Token?,
+	Consume: (self: Lexer, type: TokenType) -> Token,
+	ConsumeAny: (self: Lexer, ...TokenType) -> Token,
+	GetNextToken: (self: Lexer, advanceCursor: boolean) -> Token,
+}
+
+-->> PARSER TYPES <<--
+
+export type StructureKey = {
+	ValueType: "Literal" | "Type",
+	Values: {any},
+	Optional: boolean,
+	ContinueWhileCan: boolean,
+}
+
+export type Structure = {[string]: StructureKey}
+
+export type BytesData = {
+	Static: number,
+	Dynamic: {string},
+}
+
+export type PrimitiveData = {
+	StaticBytes: number,
+	DynamicBytes: string,
+	Write: string,
+	Read: string,
+	LuauType: string,
+}
+
+export type ModifierData = PrimitiveData
+
+export type ParsedData = {
+	Type: "Primitive" | "Modifier",
+	Name: string?,
+	DataName: Primitive | Modifier,
+	Data: {ParsedData},
+}
+
+export type Event = {
+	Name: string,
+	ID: number,
+	From: "Server" | "Client",
+	Data: {ParsedData},
+}
+
+export type ParsedSource = {
+	ClientEvents: {Event},
+	ServerEvents: {Event},
+}
+
+export type Parser = {
+	-- Members:
+	Lexer: Lexer,
+	Output: ParsedSource,
+
+	-- Public methods:
+	ParseType: (self: Parser) -> ParsedData,
+	ParseStructure: (self: Parser, body: Structure) -> {[string]: any},
+	ParseEvent: (self: Parser) -> (),
+	ParseSource: (self: Parser) -> (),
+}
+
+-->> GENERATOR TYPES <<--
+
+export type TemplateTags = "<COMPONENT>" | "<EVENT_DEFINITIONS>"			-- Shared
+	| "<EVENT_CALLBACKS>" | "<BREAK>" | "<EVENTS_WRITE>" | "<EVENTS_READ>"	-- Server & Client
+
+export type GeneratorTags = "<OUTPUT>" | "<TEMP_VAR>" | "<TEMP_VARn>"
+	| "<VALUE>" | "<WRITE_ABC>" | "<READ>" | "<READn>" | "<READ_OUT>"
+	| "<VALUE_TYPE>" | "<VALUE_TYPEn>" | "<SELF_TYPE>"
+
+export type EventGeneratedData = {
+	From: "Server" | "Client",
+	Write: string,
+	Read: string,
+	Connect: string,
+	Fire: string,
+	Callback: string,
+}
+
+export type ProcessedEventsOneSide = {
+	Definitions: string,
+	Callbacks: string,
+	Write: string,
+	Read: string,
+}
+
+export type ProcessedEvents = {
+	Server: ProcessedEventsOneSide,
+	Client: ProcessedEventsOneSide,
+}
+
+export type Generator = {
+	-- Members:
+	ParsedSource: ParsedSource,
+	ServerOutput: string?,
+	ClientOutput: string?,
+
+	-- Methods:
+	GenerateAllEvents: (self: Generator) -> (),
+}
+
+export type GeneratorStatic = {
+	new: (parsedSource: ParsedSource) -> Generator,
+	GenerateEventWrite: (event: Event) -> string,
+	GenerateEventRead: (event: Event) -> string,
+	GenerateEventConnect: (event: Event) -> string,
+	GenerateEventFireFromServer: (event: Event) -> string,
+	GenerateEventFireFromClient: (event: Event) -> string,
+	GenerateEventCallback: (event: Event) -> string,
+	GenerateEvent: (event: Event) -> EventGeneratedData,
+	ProcessEvents: (events: {EventGeneratedData}) -> ProcessedEvents
+}
+
+-->> MODULE <<--
+
+local Common = {}
+
+Common.PRIMITIVES = {
+	u8 = {
+		--Range = NumberRange.new(0, 255),
+		--Integer = true,
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	u16 = {
+		--Range = NumberRange.new(0, 65535),
+		--Integer = true,
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	u32 = {
+		--Range = NumberRange.new(0, 4294967295),
+		--Integer = true,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writeu32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+
+	i8 = {
+		--Range = NumberRange.new(-128, 127),
+		--Integer = true,
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writei8(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi8(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	i16 = {
+		--Range = NumberRange.new(-32768, 32767),
+		--Integer = true,
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writei16(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	i32 = {
+		--Range = NumberRange.new(-2147483648, 2147483647),
+		--Integer = true,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writei32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	
+	f32 = {
+		--Range = NumberRange.new(-16777216, 16777216),
+		--Integer = false,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writef32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readf32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	f64 = {
+		--Range = NumberRange.new(-2 ^ 53, 2 ^ 53),
+		--Integer = false,
+		StaticBytes = 8,
+		DynamicBytes = nil,
+		Write = "buffer.writef64(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readf64(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+
+	string = {
+		-- Range = NumberRange.new(0, 65535),
+		StaticBytes = 2,
+		DynamicBytes = "#<VALUE>",
+		Write = [[buffer.writeu16(SendBuffer, SendPosition, #<VALUE>)		-- Length
+			buffer.writestring(SendBuffer, SendPosition+2, <VALUE>)]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
+			Read(<TEMP_VAR>)
+			<OUTPUT> = buffer.readstring(ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
+		LuauType = "string",
+	},
+	buffer = {
+		--Range = NumberRange.new(0, 65535)
+		StaticBytes = 2,
+		DynamicBytes = "buffer.len(<VALUE>)",
+		Write = [[buffer.writeu16(SendBuffer, SendPosition, buffer.len(<VALUE>))		-- Length
+			buffer.copy(ReceiveBuffer, SendPosition+2, <VALUE>)]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
+			Read(<TEMP_VAR>)
+			<OUTPUT> = buffer.create(<TEMP_VAR>)
+			buffer.copy(<OUTPUT>, 0, ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
+		LuauType = "buffer",
+	},
+
+	boolean = {
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)",
+		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1",
+		LuauType = "boolean",
+	},
+	
+	Vector2 = {
+		StaticBytes = 8,
+		DynamicBytes = nil,
+		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)]],
+		Read = [[<OUTPUT> = Vector2.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4)
+			)]],
+		LuauType = "Vector2",
+	},
+	Vector3 = {
+		StaticBytes = 12,
+		DynamicBytes = nil,
+		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
+			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)]],
+		Read = [[<OUTPUT> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
+			)]],
+		LuauType = "Vector3",
+	},
+	CFrame = {
+		StaticBytes = 24,
+		DynamicBytes = nil,
+		Write = [[-- Position
+			buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
+			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)
+			
+			-- AxisAngle (faster than euler angles)
+			<TEMP_VAR>, <TEMP_VAR2> = <VALUE>:ToAxisAngle()
+			<TEMP_VAR> = <TEMP_VAR> * <TEMP_VAR2>	-- Save space by incorporating theta as the magnitude
+			buffer.writef32(SendBuffer, SendPosition+12, <TEMP_VAR>.X)
+			buffer.writef32(SendBuffer, SendPosition+16, <TEMP_VAR>.Y)
+			buffer.writef32(SendBuffer, SendPosition+20, <TEMP_VAR>.Z)]],
+		Read = [[-- Position
+			<TEMP_VAR> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
+			)
+			
+			-- AxisAngle
+			<TEMP_VAR2> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition+12),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+16),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+20)
+			)
+			<TEMP_VAR3> = <TEMP_VAR2>.Magnitude
+			<OUTPUT> = if <TEMP_VAR3> > 0
+				then CFrame.fromAxisAngle(<TEMP_VAR2>, <TEMP_VAR3>) + <TEMP_VAR>
+				else CFrame.new(<TEMP_VAR>)]],
+		LuauType = "CFrame",
+	},
+	
+	Color3 = {
+		StaticBytes = 3,
+		DynamicBytes = nil,
+		Write = [[buffer.writeu8(SendBuffer, SendPosition, math.round(<VALUE>.R * 255))
+			buffer.writeu8(SendBuffer, SendPosition+1, math.round(<VALUE>.G * 255))
+			buffer.writeu8(SendBuffer, SendPosition+2, math.round(<VALUE>.B * 255))]],
+		Read = [[<OUTPUT> = Color3.fromRGB(
+				buffer.readu8(ReceiveBuffer, ReceivePosition),
+				buffer.readu8(ReceiveBuffer, ReceivePosition+1),
+				buffer.readu8(ReceiveBuffer, ReceivePosition+2)
+			)]],
+		LuauType = "Color3",
+	},
+	BrickColor = {
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>.Number)",
+		Read = "<OUTPUT> = BrickColor.new(buffer.readu16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "BrickColor",
+	},
+} :: {[Primitive]: PrimitiveData}
+
+Common.MODIFIERS = {
+	Optional = {
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = [[buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)
+			if <VALUE> then
+				<WRITE_<VALUE>>
+			end]],
+		Read = [[<TEMP_VAR> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1
+			if <TEMP_VAR> then
+				<READ>
+				<OUTPUT> = <READ_OUT>
+			end]],
+		LuauType = "<VALUE_TYPE>?",
+	},
+	
+	Array = {
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = [[<TEMP_VAR> = #<VALUE>
+			buffer.writeu16(SendBuffer, SendPosition, <TEMP_VAR>)
+			for <TEMP_VAR2> = 1, <TEMP_VAR> do
+				<TEMP_VAR3> = <VALUE>[<TEMP_VAR2>]
+				<WRITE_<TEMP_VAR3>>
+			end]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)
+			<OUTPUT> = table.create(<TEMP_VAR>) :: <SELF_TYPE>
+			for <TEMP_VAR2> = 1, <TEMP_VAR> do
+				<READ>
+				<OUTPUT>[<TEMP_VAR2>] = <READ_OUT>
+			end]],
+		LuauType = "{<VALUE_TYPE>}",
+	},
+} :: {[Modifier]: ModifierData}
+
+Common.KEYWORDS = {
+	event = true,
+} :: {[string]: true}
+
+return Common
+]]></ProtectedString>
+				<string name="ScriptGuid">{A905A8BC-F0A4-4C5A-8D72-FBC289ACD97C}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Common</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBX0AD63F782062462D9C7B69C3F014B924">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
+
+local NetTest = script.Parent
+local Common = require(NetTest.Common)
+
+local SharedTemplate = require(script.SharedTemplate)
+local ServerParts = require(script.ServerParts)
+local ClientParts = require(script.ClientParts)
+
+-->> SERVER & CLIENT PREPARATION <<--
+
+local ServerTemplate, ClientTemplate = SharedTemplate, SharedTemplate
+
+do
+	local serverParts = ServerParts:split("<BREAK>")
+	local clientParts = ClientParts:split("<BREAK>")
+	
+	for _, part in serverParts do
+		ServerTemplate = ServerTemplate:gsub("<COMPONENT>", part, 1)
+	end
+	
+	for _, part in clientParts do
+		ClientTemplate = ClientTemplate:gsub("<COMPONENT>", part, 1)
+	end
+end
+
+-->> PRIVATE FUNCTIONS <<--
+
+local function GetTempVarCount(data: Common.ParsedData, mode: "Write" | "Read"): number
+	local dataInfo = Common.PRIMITIVES[data.DataName] or Common.MODIFIERS[data.DataName]
+	local tempVarCount = 0
+	
+	-- Count only unique tags
+	local seenTempTag = {}
+	for tempVarTag in dataInfo[mode]:gmatch("(<TEMP_VAR%d*>)") do
+		if not seenTempTag[tempVarTag] then
+			seenTempTag[tempVarTag] = true
+			tempVarCount += 1
+		end
+	end
+	
+	-- Match read tags too for temporary output
+	for tempVarTag in dataInfo[mode]:gmatch("(<READ%d*>)") do
+		if not seenTempTag[tempVarTag] then
+			seenTempTag[tempVarTag] = true
+			tempVarCount += 1
+		end
+	end
+	
+	for _, innerData in data.Data do
+		tempVarCount += GetTempVarCount(innerData, mode)
+	end
+	
+	return tempVarCount
+end
+
+local function GetLuauType(data: Common.ParsedData): string
+	local dataInfo = Common.PRIMITIVES[data.DataName] or Common.MODIFIERS[data.DataName]
+	local luauType = dataInfo.LuauType
+	
+	for _, innerData in data.Data do
+		local nextValueTag = luauType:match("(<VALUE_TYPE%d*>)")
+		luauType = luauType:gsub(nextValueTag, `{GetLuauType(innerData)}`)
+	end
+	
+	return luauType
+end
+
+local function GetUntypedArguments(event: Common.Event): string
+	local arguments = {}
+
+	for _, data in event.Data do
+		table.insert(arguments, data.Name)
+	end
+	
+	return table.concat(arguments, ", ")
+end
+
+-- Write:
+
+local function PrepareWriteData(event: Common.Event): {Arguments: string, TempVarCount: number}
+	local tempVarCount = 0
+	local arguments = {}
+	
+	for _, data in event.Data do
+		local innerTempVarCount = GetTempVarCount(data, "Write")
+		local luauType = GetLuauType(data)
+		
+		table.insert(arguments, `{data.Name}: {luauType}`)
+		tempVarCount += innerTempVarCount
+	end
+	
+	return {
+		Arguments = table.concat(arguments, ", "),
+		TempVarCount = tempVarCount,
+	}
+end
+
+local function GetWriteBlock(data: Common.ParsedData, depth: number, tempVarOffset: number): (string, number)
+	local dataInfo = Common.PRIMITIVES[data.DataName] or Common.MODIFIERS[data.DataName]
+	local bytes = table.concat({dataInfo.StaticBytes, dataInfo.DynamicBytes}, " + ")
+	local write = dataInfo.Write
+	local lines = {}
+	
+	-- Convert value tags in bytes
+	bytes = bytes:gsub("<VALUE>", data.Name)
+	
+	-- Allocate the necessary bytes
+	table.insert(lines, ("	"):rep(depth) .. `Allocate({bytes})`)
+	
+	-- Convert value tags
+	write = write:gsub("<VALUE>", data.Name)
+
+	-- Replace temporary variables
+	local tempVarCount = 0
+	while true do
+		local nextTempVarTag = write:match("(<TEMP_VAR%d*>)")
+		if not nextTempVarTag then
+			break
+		end
+
+		tempVarCount += 1
+		write = write:gsub(nextTempVarTag, `tempVar{tempVarOffset + tempVarCount}`)
+	end
+	
+	-- Replace all inner data
+	for _, innerData in data.Data do
+		local nextWriteTag, innerDataName = write:match("(<WRITE_(.*)>)")
+		innerData.Name = innerDataName
+		
+		local innerWriteBlock, innerTempVarCount = GetWriteBlock(innerData, depth + 1, tempVarOffset + tempVarCount)
+		write = write:gsub(nextWriteTag, innerWriteBlock .. "\n")
+		
+		tempVarCount += innerTempVarCount
+	end
+
+	-- Find the indentation to subtract; this way we can keep the indentation differences
+	local leastIndent = math.huge
+	for line in write:gmatch("[^\n]+") do
+		local lineIndent = line:match("^(%s*).*")
+		if #lineIndent ~= 0 then
+			leastIndent = math.min(leastIndent, #lineIndent)
+		end
+	end
+	
+	-- Write the lines
+	for line in write:gmatch("[^\n]+") do
+		local lineIndent, strippedLine = line:match("^(%s*)(.*)")
+		local currIndent = math.max(#lineIndent - leastIndent, 0) + depth
+		table.insert(lines, string.rep("	", currIndent) .. strippedLine)
+	end
+	
+	local writeBlock = table.concat(lines, "\n")
+	
+	return writeBlock, tempVarCount
+end
+
+-- Read:
+
+local function PrepareReadData(event: Common.Event): {Returns: string, TempVarCount: number}
+	local tempVarCount = 0
+	local returns = {}
+
+	for _, data in event.Data do
+		local innerTempVarCount = GetTempVarCount(data, "Read")
+		local luauType = GetLuauType(data)
+
+		table.insert(returns, luauType)
+		tempVarCount += innerTempVarCount
+	end
+
+	return {
+		Returns = table.concat(returns, ", "),
+		TempVarCount = tempVarCount,
+	}
+end
+
+local function GetReadBlock(data: Common.ParsedData, depth: number, tempVarOffset: number): (string, number)
+	local dataInfo = Common.PRIMITIVES[data.DataName] or Common.MODIFIERS[data.DataName]
+	local read = dataInfo.Read
+	local lines = {}
+
+	-- Allocate the necessary bytes
+	if dataInfo.StaticBytes > 0 then
+		table.insert(lines, ("	"):rep(depth) .. `Read({dataInfo.StaticBytes})`)
+	end
+	
+	-- Replace types in type casts
+	read = read:gsub("<SELF_TYPE>", GetLuauType(data))
+	
+	-- Replace temporary variables
+	local tempVarCount = 0
+	while true do
+		local nextTempVarTag = read:match("(<TEMP_VAR%d*>)")
+		if not nextTempVarTag then
+			break
+		end
+
+		tempVarCount += 1
+		read = read:gsub(nextTempVarTag, `tempVar{tempVarOffset + tempVarCount}`)
+	end
+	
+	-- Count the read variables too, but don't gsub
+	local tempReadVarNum = tempVarOffset + tempVarCount + 1
+	local seenTag = {}
+	local tagStart, tagEnd = read:find("<READ%d*>")
+	while tagStart do
+		tempVarCount += 1
+		tagStart, tagEnd = read:find("<READ%d*>", tagEnd + 1)
+	end
+
+	-- Replace all inner data
+	for _, innerData in data.Data do
+		local tempReadVarName = `tempVar{tempReadVarNum}`
+		local nextReadTag, readNum = read:match("(<READ(%d*)>)")
+		local innerReadBlock, innerTempVarCount = GetReadBlock(innerData, depth + 1, tempVarOffset + tempVarCount)
+		
+		innerReadBlock = innerReadBlock:gsub("<OUTPUT>", tempReadVarName)
+		read = read:gsub(`<READ{readNum}>`, innerReadBlock)
+		read = read:gsub(`<READ_OUT{readNum}>`, tempReadVarName)
+
+		tempVarCount += innerTempVarCount
+		tempReadVarNum += 1
+	end
+
+	-- Find the indentation to subtract; this way we can keep the indentation differences
+	local leastIndent = math.huge
+	for line in read:gmatch("[^\n]+") do
+		local lineIndent = line:match("^(%s*).*")
+		if #lineIndent ~= 0 then
+			leastIndent = math.min(leastIndent, #lineIndent)
+		end
+	end
+
+	-- Write the lines
+	for line in read:gmatch("[^\n]+") do
+		local lineIndent, strippedLine = line:match("^(%s*)(.*)")
+		local currIndent = math.max(#lineIndent - leastIndent, 0) + depth
+		table.insert(lines, string.rep("	", currIndent) .. strippedLine)
+	end
+
+	local readBlock = table.concat(lines, "\n")
+	return readBlock, tempVarCount
+end
+
+-->> GENERATOR <<--
+
+local Generator = {} :: Common.Generator
+Generator.__index = Generator
+
+-->> STATIC FUNCTIONS <<--
+
+local GeneratorStatic = {} :: Common.GeneratorStatic
+
+GeneratorStatic.new = function(parsedSource: Common.ParsedSource): Common.Generator
+	local self = setmetatable({}, Generator) :: Common.Generator
+
+	self.ParsedSource = parsedSource
+	self.ServerOutput = nil
+	self.ClientOutput = nil
+
+	return self
+end
+
+GeneratorStatic.GenerateEventWrite = function(event: Common.Event): string
+	--[[
+	Code structure:
+	1. Prepare arguments, get temporary variable count
+	2. Prepare temporary variables
+	3. Write function beginning, allocate initial bytes, write event id
+	4. Convert all the write blocks' tags and write down the converted blocks
+	5. Write function end and return the function as a string
+	]]
+	
+	-- Prepare the initial data first
+	local initialData = PrepareWriteData(event)
+	
+	local tempVarNames = {}
+	for i=1, initialData.TempVarCount do
+		table.insert(tempVarNames, `tempVar{i}`)
+	end
+
+	-- Start the write function
+	local lines = {}
+	table.insert(lines, `local function {event.Name}_Write({initialData.Arguments})`)
+	
+	if #tempVarNames > 0 then
+		table.insert(lines, `	local {table.concat(tempVarNames, ", ")}`)
+	end
+	
+	table.insert(lines, `	Allocate(1)`)
+	table.insert(lines, `	buffer.writeu8(SendBuffer, SendPosition, {event.ID})	-- EventID`)
+
+	-- Create the write function's body
+	local tempVarOffset = 0
+	for i, data in event.Data do
+		local writeBlock, usedTempVars = GetWriteBlock(data, 1, tempVarOffset)
+		table.insert(lines, writeBlock)
+		tempVarOffset += usedTempVars
+		
+		if event.Data[i+1] then
+			-- Keep an empty line between data types
+			table.insert(lines, "")
+		end
+	end
+
+	-- Finish the write function
+	table.insert(lines, "end")
+	
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEventRead = function(event: Common.Event): string
+	--[[
+	Code structure:
+	1. Prepare returns, get temporary variable count
+	2. Prepare temporary variables and outputs
+	3. Write function beginning, read event id
+	4. Convert all the read blocks' tags and write down the converted blocks
+	5. Write function end and return the function as a string
+	]]
+	
+	if #event.Data == 0 then
+		-- No data, no need to read anything
+		return ""
+	end
+	
+	-- Prepare the initial data first
+	local initialData = PrepareReadData(event)
+
+	local outputNames = {}
+	for i=1, #event.Data do
+		table.insert(outputNames, `output{i}`)
+	end
+	
+	local tempVarNames = {}
+	for i=1, initialData.TempVarCount do
+		table.insert(tempVarNames, `tempVar{i}`)
+	end
+
+	-- Start the read function
+	local lines = {}
+	table.insert(lines, `local function {event.Name}_Read(): ({initialData.Returns})`)
+	
+	if #outputNames > 0 then
+		table.insert(lines, `	local {table.concat(outputNames, ", ")}`)
+	end
+	if #tempVarNames> 0 then
+		table.insert(lines, `	local {table.concat(tempVarNames, ", ")}`)
+	end
+
+	-- Create the read function's body
+	local tempVarOffset = 0
+	for i, data in event.Data do
+		local readBlock, usedTempVars = GetReadBlock(data, 1, tempVarOffset)
+		
+		-- Replace final outputs
+		readBlock = readBlock:gsub("<OUTPUT>", `output{i}`)
+		
+		table.insert(lines, readBlock)
+		tempVarOffset += usedTempVars
+
+		if event.Data[i+1] then
+			-- Keep an empty line between data types
+			table.insert(lines, "")
+		end
+	end
+
+	-- Finish the read function
+	table.insert(lines, `	return {table.concat(outputNames, ", ")}`)
+	table.insert(lines, "end")
+
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEventConnect = function(event: Common.Event): string
+	local initialWriteData = PrepareWriteData(event)
+	
+	local lines = {
+		`	{event.Name} = \{`,
+		`		Connect = function(connectedFunction: ({initialWriteData.Arguments}) -> ()): () -> ()`,
+		`			table.insert(EventCallbacks[{event.ID}], connectedFunction)`,
+		`			return function()`,
+		`				table.remove(EventCallbacks[{event.ID}], table.find(EventCallbacks[{event.ID}], connectedFunction))`,
+		`			end`,
+		`		end`,
+		`	},`,
+	}
+	
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEventFireFromServer = function(event: Common.Event): string
+	local initialWriteData = PrepareWriteData(event)
+	local returns = GetUntypedArguments(event)
+	local arguments = if #initialWriteData.Arguments > 0
+		then `player: Player, {initialWriteData.Arguments}`
+		else "player: Player"
+	
+	local lines = {
+		`	{event.Name} = \{`,
+		`		FireClient = function({arguments})`,
+		`			LoadData(player)`,
+		`			{event.Name}_Write({returns})`,
+		`			SaveData(player)`,
+		`		end,`,
+		`	},`,
+	}
+
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEventFireFromClient = function(event: Common.Event): string
+	local initialWriteData = PrepareWriteData(event)
+	local returns = GetUntypedArguments(event)
+	
+	local lines = {
+		`	{event.Name} = \{`,
+		`		FireServer = function({initialWriteData.Arguments})`,
+		`			{event.Name}_Write({returns})`,
+		`		end,`,
+		`	},`,
+	}
+
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEventCallback = function(event: Common.Event): string
+	local initialWriteData = PrepareWriteData(event)
+	local returns = GetUntypedArguments(event)
+	returns = if #returns > 0 then returns else nil
+	
+	local arguments = if event.From == "Server"
+		then table.concat({"callback", returns}, ", ")
+		else table.concat({"callback", "player", returns}, ", ")
+	
+	local ifType = if event.ID == 1 then "if" else "elseif"
+	
+	local lines = {
+		`		{ifType} eventID == {event.ID} then`,
+		`			for _, callback in EventCallbacks[{event.ID}] do`,
+		`				task.spawn({arguments})`,
+		`			end`,
+	}
+	
+	if returns then
+		table.insert(
+			lines,
+			2,
+			`			local {returns} = {event.Name}_Read()`
+		)
+	end
+	
+	return table.concat(lines, "\n")
+end
+
+GeneratorStatic.GenerateEvent = function(event: Common.Event): Common.EventGeneratedData
+	local generatedData = {
+		From = event.From,
+		Write = GeneratorStatic.GenerateEventWrite(event),
+		Read = GeneratorStatic.GenerateEventRead(event),
+		Connect = GeneratorStatic.GenerateEventConnect(event),
+		Fire = if event.From == "Server"
+			then GeneratorStatic.GenerateEventFireFromServer(event)
+			else GeneratorStatic.GenerateEventFireFromClient(event),
+		Callback = GeneratorStatic.GenerateEventCallback(event),
+	}
+	
+	return generatedData
+end
+
+GeneratorStatic.ProcessEvents = function(events: {Common.EventGeneratedData}): Common.ProcessedEvents
+	-- Definitions: string,
+	-- Callbacks: string,
+	-- Write: string,
+	-- Read: string,
+	
+	local sides = {"Server", "Client"}
+	local numEvents = #events
+	local split = {}
+	for _, side in sides do
+		split[side] = {
+			Definitions = table.create(numEvents),
+			Callbacks = table.create(numEvents),
+			Write = table.create(numEvents),
+			Read = table.create(numEvents),
+		}
+	end
+	
+	for _, event in events do
+		local side = event.From
+		local otherSide = if event.From == "Server" then "Client" else "Server"
+		
+		table.insert(split[side].Definitions, event.Fire)
+		table.insert(split[side].Write, event.Write)
+		
+		table.insert(split[otherSide].Definitions, event.Connect)
+		table.insert(split[otherSide].Callbacks, event.Callback)
+		table.insert(split[otherSide].Read, event.Read)
+	end
+	
+	for _, data: Common.ProcessedEventsOneSide in split do
+		if #data.Callbacks > 0 then
+			table.insert(data.Callbacks, table.concat({
+				"		else",
+				"			error('Unknown event id')",
+				"		end",
+			}, "\n"))
+		end
+	end
+	
+	local processed = {} :: Common.ProcessedEvents
+	for _, side in sides do
+		processed[side] = {
+			Definitions = table.concat(split[side].Definitions, "\n\n"),
+			Callbacks = table.concat(split[side].Callbacks, "\n"),
+			Write = table.concat(split[side].Write, "\n\n"),
+			Read = table.concat(split[side].Read, "\n\n"),
+		}
+	end
+	
+	return processed
+end
+
+-->> DYNAMIC METHODS <<--
+
+function Generator:GenerateAllEvents()
+	local output = {
+		Server = ServerTemplate:gsub("<RECEIVE_EVENT_COUNT>", #self.ParsedSource.ClientEvents),
+		Client = ClientTemplate:gsub("<RECEIVE_EVENT_COUNT>", #self.ParsedSource.ServerEvents),
+	}
+	
+	local events = {}
+	
+	for _, event in self.ParsedSource.ClientEvents do
+		local generated = GeneratorStatic.GenerateEvent(event)
+		table.insert(events, generated)
+	end
+	
+	for _, event in self.ParsedSource.ServerEvents do
+		local generated = GeneratorStatic.GenerateEvent(event)
+		table.insert(events, generated)
+	end
+	
+	local processedEvents = GeneratorStatic.ProcessEvents(events)
+	
+	for side, processedData in processedEvents do
+		output[side] = output[side]:gsub("<EVENT_DEFINITIONS>", processedData.Definitions)
+			:gsub("<EVENT_CALLBACKS>", processedData.Callbacks)
+			:gsub("<EVENTS_WRITE>", processedData.Write)
+			:gsub("<EVENTS_READ>", processedData.Read)
+	end
+	
+	self.ClientOutput = output.Client
+	self.ServerOutput = output.Server
+end
+
+return table.freeze(GeneratorStatic)
+]]></ProtectedString>
+				<string name="ScriptGuid">{4360BC9F-02C2-4D0F-A387-918541FE42AA}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Generator</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+			<Item class="ModuleScript" referent="RBX86A74FCC951C4532BC8266FC7EDDEDF8">
+				<Properties>
+					<Content name="LinkedSource"><null></null></Content>
+					<ProtectedString name="Source"><![CDATA[return [[--!strict
+--!native
+--!optimize 2
+--!nolint ForRange
+
+-->> TYPES <<--
+
+type BufferInfo = {
+	Buffer: buffer,
+	Size: number,
+	Cursor: number,
+}
+
+-->> SETUP <<--
+
+<COMPONENT>
+local ReceiveBuffer: buffer
+local ReceiveBufferSize: number
+local ReceiveCursor: number
+local ReceivePosition: number
+
+local EventCallbacks = table.create(<RECEIVE_EVENT_COUNT>) :: any
+for i=1, <RECEIVE_EVENT_COUNT> do
+	EventCallbacks[i] = {}
+end
+
+-->> FUNCTIONS <<--
+
+<COMPONENT>
+local function Allocate(bytes: number)
+	local inUse = (SendCursor + bytes)
+
+	-- Resize the buffer if it is not long enough
+	if inUse > SendBufferSize then
+		while inUse > SendBufferSize do
+			-- Resize to twice the size to avoid resizing every time
+			SendBufferSize *= 2
+		end
+
+		local newBuffer = buffer.create(SendBufferSize)
+		buffer.copy(newBuffer, 0, SendBuffer, 0, SendCursor)
+		SendBuffer = newBuffer
+	end
+	
+	SendPosition = SendCursor
+	SendCursor = SendCursor + bytes
+end
+
+local function Read(Bytes: number)
+	ReceivePosition = ReceiveCursor
+	ReceiveCursor = ReceiveCursor + Bytes
+end
+
+<COMPONENT>
+RunService.Heartbeat:Connect(StepReplication)
+
+-->> RETURNS <<--
+
+return table.freeze({
+	StepReplication = StepReplication,
+	
+<EVENT_DEFINITIONS>
+})
+]]
+]]></ProtectedString>
+					<string name="ScriptGuid">{D3B44C60-375C-4651-9AAD-EF5FAD6F1BA0}</string>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">SharedTemplate</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX1EB7B754EC9242A1B650F4161FD12C10">
+				<Properties>
+					<Content name="LinkedSource"><null></null></Content>
+					<ProtectedString name="Source"><![CDATA[return [[
+local RunService = game:GetService("RunService")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReliableEvent = ReplicatedStorage:WaitForChild("NETTEST_RELIABLE") :: RemoteEvent
+
+local SendBuffer = buffer.create(64)
+local SendBufferSize = 64
+local SendCursor = 0
+local SendPosition = 0
+
+<BREAK>
+<BREAK>
+<EVENTS_WRITE>
+
+<EVENTS_READ>
+
+local function StepReplication()
+	-- Avoid sending empty data
+	if SendCursor == 0 then
+		return
+	end
+	
+	-- Trim the data size
+	local trimmedBuffer = buffer.create(SendCursor)
+	buffer.copy(trimmedBuffer, 0, SendBuffer, 0, SendCursor)
+	ReliableEvent:FireServer(trimmedBuffer)
+
+	-- Reset data
+	SendBuffer = buffer.create(64)
+	SendBufferSize = 64
+	SendCursor = 0
+end
+
+local function EventReceived(receiveBuffer: buffer)
+	ReceiveBuffer = receiveBuffer
+	ReceiveBufferSize = buffer.len(receiveBuffer)
+	ReceiveCursor = 0
+	ReceivePosition = 0
+
+	while ReceiveCursor < ReceiveBufferSize do
+		Read(1)
+		local eventID = buffer.readu8(ReceiveBuffer, ReceivePosition)
+		
+		-- Doing case-by-case is faster than generalization
+<EVENT_CALLBACKS>
+	end
+end
+
+-->> CONNECTIONS <<--
+
+ReliableEvent.OnClientEvent:Connect(EventReceived)]]
+]]></ProtectedString>
+					<string name="ScriptGuid">{4C7C8741-81FA-493D-94A5-7FC400986586}</string>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">ClientParts</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+			<Item class="ModuleScript" referent="RBX5814321A1F694E9597C3C347FB87F392">
+				<Properties>
+					<Content name="LinkedSource"><null></null></Content>
+					<ProtectedString name="Source"><![CDATA[return [[
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReliableEvent: RemoteEvent = ReplicatedStorage:FindFirstChild("NETTEST_RELIABLE") :: any
+if not ReliableEvent then
+	ReliableEvent = Instance.new("RemoteEvent")
+	ReliableEvent.Name = "NETTEST_RELIABLE"
+	ReliableEvent.Parent = ReplicatedStorage
+end
+
+local SendBuffer: buffer
+local SendBufferSize: number
+local SendCursor: number
+local SendPosition: number
+
+<BREAK>
+local PlayerBufferMap: {[Player]: BufferInfo} = {}
+
+local function LoadData(player: Player)
+	local playerData = PlayerBufferMap[player]
+
+	-- If there is no data, create default data
+	if not playerData then
+		SendBuffer = buffer.create(64)
+		SendBufferSize = 64
+		SendCursor = 0
+		SendPosition = 0
+		return
+	end
+
+	-- Load the player's data into the local variables
+	SendBuffer = playerData.Buffer
+	SendBufferSize = playerData.Size
+	SendCursor = playerData.Cursor
+	SendPosition = playerData.Cursor
+end
+
+local function SaveData(player: Player)
+	-- Avoid creating a new table
+	local playerData = PlayerBufferMap[player]
+	if not playerData then
+		PlayerBufferMap[player] = {
+			Buffer = SendBuffer,
+			Size = SendBufferSize,
+			Cursor = SendCursor,
+		}
+		return
+	end
+	
+	playerData.Buffer = SendBuffer
+	playerData.Size = SendBufferSize
+	playerData.Cursor = SendCursor
+end
+
+<BREAK>
+<EVENTS_WRITE>
+
+<EVENTS_READ>
+
+local function StepReplication()
+	for player, playerData in PlayerBufferMap do
+		-- Avoid sending empty data
+		if playerData.Cursor == 0 then
+			continue
+		end
+		
+		-- Trim the data size
+		local trimmedBuffer = buffer.create(playerData.Cursor)
+		buffer.copy(trimmedBuffer, 0, playerData.Buffer, 0, playerData.Cursor)
+		ReliableEvent:FireClient(player, trimmedBuffer)
+
+		-- Reset data
+		playerData.Buffer = buffer.create(64)
+		playerData.Size = 64
+		playerData.Cursor = 0
+	end
+end
+
+local function EventReceived(player: Player, receiveBuffer: buffer)
+	ReceiveBuffer = receiveBuffer
+	ReceiveBufferSize = buffer.len(receiveBuffer)
+	ReceiveCursor = 0
+	ReceivePosition = 0
+
+	while ReceiveCursor < ReceiveBufferSize do
+		Read(1)
+		local eventID = buffer.readu8(ReceiveBuffer, ReceivePosition)
+		
+		-- Doing case-by-case is faster than generalization
+<EVENT_CALLBACKS>
+	end
+end
+
+local function PlayerRemoving(player: Player)
+	PlayerBufferMap[player] = nil
+end
+
+-->> CONNECTIONS <<--
+
+Players.PlayerRemoving:Connect(PlayerRemoving)
+ReliableEvent.OnServerEvent:Connect(EventReceived)]]
+]]></ProtectedString>
+					<string name="ScriptGuid">{32E7AACA-380F-466F-8DE1-103505F2E08C}</string>
+					<BinaryString name="AttributesSerialize"></BinaryString>
+					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+					<bool name="DefinesCapabilities">false</bool>
+					<string name="Name">ServerParts</string>
+					<int64 name="SourceAssetId">-1</int64>
+					<BinaryString name="Tags"></BinaryString>
+				</Properties>
+			</Item>
+		</Item>
+		<Item class="ModuleScript" referent="RBXDABE19B8F0734F59B375CDF2F555B1FD">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
+
+local NetTest = script.Parent
+local Common = require(NetTest.Common)
+
+-->> SETUP <<--
+
+local BOOLEANS = {
+	["true"] = true,
+	["false"] = true,
+}
+
+-- Save token patterns in order in which we should recognize them
+local TOKEN_PATTERNS: {Common.TokenPatternData} = {
+	-- Simple tokens first
+	[1] = {
+		Type = "Whitespace",
+		Pattern = "^%s+",
+	},
+	[2] = {
+		Type = "VariableAssign",
+		Pattern = "^=",
+	},
+	[3] = {
+		Type = "FieldAssign",
+		Pattern = "^:",
+	},
+	[4] = {
+		Type = "OpenParentheses",
+		Pattern = "^%(",
+	},
+	[5] = {
+		Type = "CloseParentheses",
+		Pattern = "^%)",
+	},
+	[6] = {
+		Type = "OpenBraces",
+		Pattern = "^%{",
+	},
+	[7] = {
+		Type = "CloseBraces",
+		Pattern = "^%}",
+	},
+	[8] = {
+		Type = "Comma",
+		Pattern = "^,",
+	},
+	[9] = {
+		Type = "Optional",
+		Pattern = "^%?",
+	},
+	[10] = {
+		Type = "Array",
+		Pattern = "^%[%]",
+	},
+	
+	-- Keywords go second
+	[11] = {
+		Type = "Keyword",
+		Pattern = "^%a+",
+		Validate = function(token: string): boolean
+			return Common.KEYWORDS[token]
+		end,
+	},
+	
+	-- Types go third
+	[12] = {
+		Type = "Primitive",
+		Pattern = "^%w+",
+		Validate = function(token: string): boolean
+			return Common.PRIMITIVES[token]
+		end,
+	},
+	[13] = {
+		Type = "Boolean",
+		Pattern = "^%a+",
+		Validate = function(token: string): boolean
+			return BOOLEANS[token]
+		end,
+	},
+	
+	-- Text (identifiers, ...) goes last
+	[14] = {
+		Type = "Text",
+		Pattern = "^[%a_][%w_]*",
+	},
+}
+
+local IGNORED_TYPES = {
+	["Whitespace"] = true,
+}
+
+-->> LEXER <<--
+
+local Lexer = {} :: Common.Lexer
+Lexer.__index = Lexer
+
+function Lexer:TryConsume(type: Common.TokenType): Common.Token?
+	local nextToken = self:GetNextToken(false)
+	if nextToken.Type == type then
+		-- Advance cursor and return token
+		self.Cursor = nextToken.End + 1
+		return nextToken
+	end
+end
+
+function Lexer:Consume(type: Common.TokenType): Common.Token
+	local nextToken = self:GetNextToken(true)
+	assert(nextToken.Type == type, `Expected token of type {type} got {nextToken.Type} instead!`)
+	return nextToken
+end
+
+function Lexer:ConsumeAny(...: Common.TokenType): Common.Token
+	local types = table.pack(...)
+	local nextToken = self:GetNextToken(true)
+	assert(table.find(types, nextToken.Type),
+		`Expected token of type ({table.concat(types, "|")}) got {nextToken.Type} instead!`
+	)
+	return nextToken
+end
+
+function Lexer:GetNextToken(advanceCursor: boolean): Common.Token
+	if self.Cursor > self.Size then
+		return {
+			Type = "EndOfFile",
+			Value = "",
+			Start = self.Size,
+			End = self.Size,
+		}
+	end
+	
+	for _, patternData in TOKEN_PATTERNS do
+		local startIndex, endIndex = string.find(self.Source, patternData.Pattern, self.Cursor)
+
+		-- Pattern did not match
+		if not startIndex or not endIndex then
+			continue
+		end
+
+		local text = string.sub(self.Source, startIndex, endIndex)
+
+		-- Validate token type if needed
+		if patternData.Validate and not patternData.Validate(text) then
+			continue
+		end
+		
+		-- Advance even if it's ignored with advanceCursor = false
+		if advanceCursor or IGNORED_TYPES[patternData.Type] then
+			self.Cursor = endIndex + 1
+		end
+		
+		-- Return the next token if the current one is ignored
+		if IGNORED_TYPES[patternData.Type] then
+			return self:GetNextToken(advanceCursor)
+		end
+		
+		return {
+			Type = patternData.Type,
+			Value = text,
+			Start = startIndex,
+			End = endIndex,
+		}
+	end
+	
+	-- Return unknown token
+	local symbol = string.sub(self.Source, self.Cursor, self.Cursor)
+	local unknownToken = {
+		Type = "Unknown",
+		Value = symbol,
+		Start = self.Cursor,
+		End = self.Cursor ,
+	}
+	
+	if advanceCursor then
+		self.Cursor += 1
+	end
+	
+	return unknownToken
+end
+
+return table.freeze({
+	new = function(source: string): Common.Lexer
+		local self = setmetatable({}, Lexer) :: Common.Lexer
+
+		self.Source = source
+		self.Size = #source
+		self.Cursor = 1
+
+		return self
+	end,
+})
+]]></ProtectedString>
+				<string name="ScriptGuid">{E5D2B158-44B1-4578-833A-FFDDE10D1D97}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Lexer</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBX2A1CFFF7009748C4BE53234B4ACDB5DA">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
+
+local NetTest = script.Parent
+local Common = require(NetTest.Common)
+
+-->> STRUCTURE DEFINITIONS <<--
+
+local EVENT_STRUCT: Common.Structure = {
+	from = {
+		ValueType = "Literal",
+		Values = {"Server", "Client"},
+		Optional = false,
+		ContinueWhileCan = false,
+	},
+	data = {
+		ValueType = "Type",
+		Values = {},
+		Optional = true,
+		ContinueWhileCan = true,
+	},
+}
+
+-->> PARSER <<--
+
+local Parser = {} :: Common.Parser
+Parser.__index = Parser
+
+function Parser:ParseType(): Common.ParsedData
+	local firstToken = self.Lexer:ConsumeAny("Primitive", "Text")
+	local name, value
+	
+	if firstToken.Type == "Text" then
+		name = firstToken.Value
+		self.Lexer:Consume("FieldAssign")
+		value = self.Lexer:Consume("Primitive").Value
+	else
+		value = firstToken.Value
+	end
+	
+	-- Value
+	local leafNode = {
+		Type = "Primitive",
+		DataName = value,
+		Data = {}
+	}
+	local rootNode = leafNode
+	
+	-- Array modifier
+	while self.Lexer:TryConsume("Array") do
+		rootNode = {
+			Type = "Modifier",
+			DataName = "Array",
+			Data = {rootNode}
+		}
+	end
+	
+	-- Optional modifier
+	if self.Lexer:TryConsume("Optional") then
+		rootNode = {
+			Type = "Modifier",
+			DataName = "Optional",
+			Data = {rootNode}
+		}
+	end
+	
+	rootNode.Name = name or nil
+	
+	return rootNode
+end
+
+function Parser:ParseStructure(body: Common.Structure): {[string]: any}
+	local struct = {}
+	
+	self.Lexer:Consume("OpenBraces")
+	
+	local function consumeLiteral(fieldName: string)
+		local keyData = body[fieldName]
+		local value = self.Lexer:Consume("Text")
+		assert(table.find(keyData.Values, value.Value), `Unexpected value {value.Value} for field {fieldName}!`)
+		return value.Value
+	end
+	
+	local function consumeValue(fieldName: string)
+		local keyData = body[fieldName]
+		local value = if keyData.ValueType == "Literal" then consumeLiteral(fieldName)
+			elseif keyData.ValueType == "Type" then self:ParseType()
+			else nil
+		assert(value, `Invalid value!`)
+
+		if typeof(struct[fieldName]) == "table" then
+			table.insert(struct[fieldName], value)
+		else
+			struct[fieldName] = value
+		end
+	end
+	
+	while true do
+		if self.Lexer:TryConsume("CloseBraces") then
+			break
+		end
+		
+		local field = self.Lexer:Consume("Text")
+		assert(body[field.Value], `Unexpected field {field.Value}!`)
+		assert(not struct[field.Value], `Field {field.Value} is already assigned!`)
+		
+		self.Lexer:Consume("FieldAssign")
+		
+		local parentheses = self.Lexer:TryConsume("OpenParentheses")
+		local keyData = body[field.Value]
+		
+		-- Prepare the table for multiple values
+		if keyData.ContinueWhileCan then
+			struct[field.Value] = {}
+		end
+		
+		-- If there are no parentheses, expect only one value; loop otherwise
+		if keyData.ContinueWhileCan and parentheses then
+			-- Immediately check for close parentheses to allow 0 values
+			while not self.Lexer:TryConsume("CloseParentheses") do
+				consumeValue(field.Value)
+				
+				-- Don't require a comma if the next token is a close parentheses
+				if self.Lexer:TryConsume("CloseParentheses") then
+					break
+				end
+				
+				self.Lexer:Consume("Comma")
+			end
+			parentheses = false	-- Already closed
+		else
+			consumeValue(field.Value)
+		end
+		
+		if parentheses then
+			self.Lexer:Consume("CloseParentheses")
+		end
+		
+		-- Force comma at the end of the field assign unless it's the last field
+		if self.Lexer:TryConsume("CloseBraces") then
+			break
+		end
+		
+		self.Lexer:Consume("Comma")
+	end
+	
+	for key, keyData in body do
+		if not keyData.Optional and not struct[key] then
+			error(`Missing field {key}!`)
+		end
+	end
+	
+	return struct
+end
+
+function Parser:ParseEvent()
+	local nameToken = self.Lexer:Consume("Text")
+	self.Lexer:Consume("VariableAssign")
+	
+	local struct = self:ParseStructure(EVENT_STRUCT)
+	local event = {
+		Name = nameToken.Value,
+		From = struct["from"],
+		Data = {},
+	}
+	
+	if struct["data"] then
+		local valueNum = 1
+		for _, parsedData: Common.ParsedData in struct["data"] do
+			parsedData.Name = parsedData.Name or `value{valueNum}`
+			table.insert(event.Data, parsedData)
+			valueNum += 1
+		end
+	end
+	
+	if struct["from"] == "Server" then
+		event.ID = #self.Output.ServerEvents + 1
+		table.insert(self.Output.ServerEvents, event)
+	elseif struct["from"] == "Client" then
+		event.ID = #self.Output.ClientEvents + 1
+		table.insert(self.Output.ClientEvents, event)
+	end
+end
+
+function Parser:ParseSource()
+	while not self.Lexer:TryConsume("EndOfFile") do
+		local keyword = self.Lexer:Consume("Keyword")
+		if keyword.Value == "event" then
+			self:ParseEvent()
+		else
+			error(`Unknown keyword '{keyword.Value}'!`)
+		end
+	end
+end
+
+return table.freeze({
+	new = function(lexer: Common.Lexer): Common.Parser
+		local self = setmetatable({}, Parser) :: Common.Parser
+		
+		self.Lexer = lexer
+		self.Output = {
+			ServerEvents = {},
+			ClientEvents = {},
+		}
+		
+		return self
+	end,
+})
+]]></ProtectedString>
+				<string name="ScriptGuid">{AF35E0A6-38B5-4318-8878-25C693FDC58F}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Parser</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+	</Item>
+</roblox>

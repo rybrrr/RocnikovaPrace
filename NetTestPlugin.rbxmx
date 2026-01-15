@@ -165,411 +165,426 @@ ConvertButtonImage.Activated:Connect(TryConvert)
 			<int64 name="SourceAssetId">-1</int64>
 			<BinaryString name="Tags"></BinaryString>
 		</Properties>
-		<Item class="ModuleScript" referent="RBX56903D8B22564874AA81E664CBF5A6CD">
+		<Item class="ModuleScript" referent="RBX2A1CFFF7009748C4BE53234B4ACDB5DA">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
-				<ProtectedString name="Source"><![CDATA[-->> TOKEN TYPES <<--
+				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
 
-export type TokenType = "Whitespace"
-	| "VariableAssign"
-	| "FieldAssign"
-	| "OpenParentheses"
-	| "CloseParentheses"
-	| "OpenBraces"
-	| "CloseBraces"
-	| "Comma"
-	| "Optional"
-	| "Array"
-	| "Keyword"
-	| "Primitive"
-	| "Boolean"
-	| "Text"
-	| "EndOfFile"
-	| "Unknown"
+local NetTest = script.Parent
+local Common = require(NetTest.Common)
 
-export type Primitive = "u8" | "u16" | "u32"
-	| "i8" | "i16" | "i32"
-	| "f32" | "f64"
-	| "string" | "buffer" | "boolean"
-	| "Vector2" | "Vector3" | "CFrame"
-	| "Color3" | "BrickColor"
+-->> STRUCTURE DEFINITIONS <<--
 
-export type Modifier = "Optional" | "Array"
-
-export type Token = {
-	Type: TokenType,
-	Value: string,
-	Start: number,
-	End: number,
-}
-
-export type TokenPatternData = {
-	Type: TokenType,
-	Pattern: string,
-	Validate: ((token: string) -> boolean)?,	-- If Validate function is provided, it checks whether the token is 
-	-- actually of the type or if it is just a pattern coincidence
-}
-
-export type Lexer = {
-	-- Members:
-	Source: string,
-	Size: number,
-	Cursor: number,
-
-	-- Methods:
-	TryConsume: (self: Lexer, type: TokenType) -> Token?,
-	Consume: (self: Lexer, type: TokenType) -> Token,
-	ConsumeAny: (self: Lexer, ...TokenType) -> Token,
-	GetNextToken: (self: Lexer, advanceCursor: boolean) -> Token,
-}
-
--->> PARSER TYPES <<--
-
-export type StructureKey = {
-	ValueType: "Literal" | "Type",
-	Values: {any},
-	Optional: boolean,
-	ContinueWhileCan: boolean,
-}
-
-export type Structure = {[string]: StructureKey}
-
-export type BytesData = {
-	Static: number,
-	Dynamic: {string},
-}
-
-export type PrimitiveData = {
-	StaticBytes: number,
-	DynamicBytes: string,
-	Write: string,
-	Read: string,
-	LuauType: string,
-}
-
-export type ModifierData = PrimitiveData
-
-export type ParsedData = {
-	Type: "Primitive" | "Modifier",
-	Name: string?,
-	DataName: Primitive | Modifier,
-	Data: {ParsedData},
-}
-
-export type Event = {
-	Name: string,
-	ID: number,
-	From: "Server" | "Client",
-	Data: {ParsedData},
-}
-
-export type ParsedSource = {
-	ClientEvents: {Event},
-	ServerEvents: {Event},
-}
-
-export type Parser = {
-	-- Members:
-	Lexer: Lexer,
-	Output: ParsedSource,
-
-	-- Public methods:
-	ParseType: (self: Parser) -> ParsedData,
-	ParseStructure: (self: Parser, body: Structure) -> {[string]: any},
-	ParseEvent: (self: Parser) -> (),
-	ParseSource: (self: Parser) -> (),
-}
-
--->> GENERATOR TYPES <<--
-
-export type TemplateTags = "<COMPONENT>" | "<EVENT_DEFINITIONS>"			-- Shared
-	| "<EVENT_CALLBACKS>" | "<BREAK>" | "<EVENTS_WRITE>" | "<EVENTS_READ>"	-- Server & Client
-
-export type GeneratorTags = "<OUTPUT>" | "<TEMP_VAR>" | "<TEMP_VARn>"
-	| "<VALUE>" | "<WRITE_ABC>" | "<READ>" | "<READn>" | "<READ_OUT>"
-	| "<VALUE_TYPE>" | "<VALUE_TYPEn>" | "<SELF_TYPE>"
-
-export type EventGeneratedData = {
-	From: "Server" | "Client",
-	Write: string,
-	Read: string,
-	Connect: string,
-	Fire: string,
-	Callback: string,
-}
-
-export type ProcessedEventsOneSide = {
-	Definitions: string,
-	Callbacks: string,
-	Write: string,
-	Read: string,
-}
-
-export type ProcessedEvents = {
-	Server: ProcessedEventsOneSide,
-	Client: ProcessedEventsOneSide,
-}
-
-export type Generator = {
-	-- Members:
-	ParsedSource: ParsedSource,
-	ServerOutput: string?,
-	ClientOutput: string?,
-
-	-- Methods:
-	GenerateAllEvents: (self: Generator) -> (),
-}
-
-export type GeneratorStatic = {
-	new: (parsedSource: ParsedSource) -> Generator,
-	GenerateEventWrite: (event: Event) -> string,
-	GenerateEventRead: (event: Event) -> string,
-	GenerateEventConnect: (event: Event) -> string,
-	GenerateEventFireFromServer: (event: Event) -> string,
-	GenerateEventFireFromClient: (event: Event) -> string,
-	GenerateEventCallback: (event: Event) -> string,
-	GenerateEvent: (event: Event) -> EventGeneratedData,
-	ProcessEvents: (events: {EventGeneratedData}) -> ProcessedEvents
-}
-
--->> MODULE <<--
-
-local Common = {}
-
-Common.PRIMITIVES = {
-	u8 = {
-		--Range = NumberRange.new(0, 255),
-		--Integer = true,
-		StaticBytes = 1,
-		DynamicBytes = nil,
-		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
+local EVENT_STRUCT: Common.Structure = {
+	from = {
+		ValueType = "Literal",
+		Values = {"Server", "Client"},
+		Optional = false,
+		ContinueWhileCan = false,
 	},
-	u16 = {
-		--Range = NumberRange.new(0, 65535),
-		--Integer = true,
-		StaticBytes = 2,
-		DynamicBytes = nil,
-		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readu16(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
+	data = {
+		ValueType = "Type",
+		Values = {},
+		Optional = true,
+		ContinueWhileCan = true,
 	},
-	u32 = {
-		--Range = NumberRange.new(0, 4294967295),
-		--Integer = true,
-		StaticBytes = 4,
-		DynamicBytes = nil,
-		Write = "buffer.writeu32(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readu32(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
+}
 
-	i8 = {
-		--Range = NumberRange.new(-128, 127),
-		--Integer = true,
-		StaticBytes = 1,
-		DynamicBytes = nil,
-		Write = "buffer.writei8(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readi8(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
-	i16 = {
-		--Range = NumberRange.new(-32768, 32767),
-		--Integer = true,
-		StaticBytes = 2,
-		DynamicBytes = nil,
-		Write = "buffer.writei16(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readi16(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
-	i32 = {
-		--Range = NumberRange.new(-2147483648, 2147483647),
-		--Integer = true,
-		StaticBytes = 4,
-		DynamicBytes = nil,
-		Write = "buffer.writei32(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readi32(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
+-->> PARSER <<--
+
+local Parser = {} :: Common.Parser
+Parser.__index = Parser
+
+function Parser:ParseType(): Common.ParsedData
+	local firstToken = self.Lexer:ConsumeAny("Primitive", "Text")
+	local name, value
 	
-	f32 = {
-		--Range = NumberRange.new(-16777216, 16777216),
-		--Integer = false,
-		StaticBytes = 4,
-		DynamicBytes = nil,
-		Write = "buffer.writef32(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readf32(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
-	f64 = {
-		--Range = NumberRange.new(-2 ^ 53, 2 ^ 53),
-		--Integer = false,
-		StaticBytes = 8,
-		DynamicBytes = nil,
-		Write = "buffer.writef64(SendBuffer, SendPosition, <VALUE>)",
-		Read = "<OUTPUT> = buffer.readf64(ReceiveBuffer, ReceivePosition)",
-		LuauType = "number",
-	},
-
-	string = {
-		-- Range = NumberRange.new(0, 65535),
-		StaticBytes = 2,
-		DynamicBytes = "#<VALUE>",
-		Write = [[buffer.writeu16(SendBuffer, SendPosition, #<VALUE>)		-- Length
-			buffer.writestring(SendBuffer, SendPosition+2, <VALUE>)]],
-		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
-			Read(<TEMP_VAR>)
-			<OUTPUT> = buffer.readstring(ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
-		LuauType = "string",
-	},
-	buffer = {
-		--Range = NumberRange.new(0, 65535)
-		StaticBytes = 2,
-		DynamicBytes = "buffer.len(<VALUE>)",
-		Write = [[buffer.writeu16(SendBuffer, SendPosition, buffer.len(<VALUE>))		-- Length
-			buffer.copy(ReceiveBuffer, SendPosition+2, <VALUE>)]],
-		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
-			Read(<TEMP_VAR>)
-			<OUTPUT> = buffer.create(<TEMP_VAR>)
-			buffer.copy(<OUTPUT>, 0, ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
-		LuauType = "buffer",
-	},
-
-	boolean = {
-		StaticBytes = 1,
-		DynamicBytes = nil,
-		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)",
-		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1",
-		LuauType = "boolean",
-	},
+	if firstToken.Type == "Text" then
+		name = firstToken.Value
+		self.Lexer:Consume("FieldAssign")
+		value = self.Lexer:Consume("Primitive").Value
+	else
+		value = firstToken.Value
+	end
 	
-	Vector2 = {
-		StaticBytes = 8,
-		DynamicBytes = nil,
-		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
-			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)]],
-		Read = [[<OUTPUT> = Vector2.new(
-				buffer.readf32(ReceiveBuffer, ReceivePosition),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+4)
-			)]],
-		LuauType = "Vector2",
-	},
-	Vector3 = {
-		StaticBytes = 12,
-		DynamicBytes = nil,
-		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
-			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
-			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)]],
-		Read = [[<OUTPUT> = Vector3.new(
-				buffer.readf32(ReceiveBuffer, ReceivePosition),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
-			)]],
-		LuauType = "Vector3",
-	},
-	CFrame = {
-		StaticBytes = 24,
-		DynamicBytes = nil,
-		Write = [[-- Position
-			buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
-			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
-			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)
-			
-			-- AxisAngle (faster than euler angles)
-			<TEMP_VAR>, <TEMP_VAR2> = <VALUE>:ToAxisAngle()
-			<TEMP_VAR> = <TEMP_VAR> * <TEMP_VAR2>	-- Save space by incorporating theta as the magnitude
-			buffer.writef32(SendBuffer, SendPosition+12, <TEMP_VAR>.X)
-			buffer.writef32(SendBuffer, SendPosition+16, <TEMP_VAR>.Y)
-			buffer.writef32(SendBuffer, SendPosition+20, <TEMP_VAR>.Z)]],
-		Read = [[-- Position
-			<TEMP_VAR> = Vector3.new(
-				buffer.readf32(ReceiveBuffer, ReceivePosition),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
-			)
-			
-			-- AxisAngle
-			<TEMP_VAR2> = Vector3.new(
-				buffer.readf32(ReceiveBuffer, ReceivePosition+12),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+16),
-				buffer.readf32(ReceiveBuffer, ReceivePosition+20)
-			)
-			<TEMP_VAR3> = <TEMP_VAR2>.Magnitude
-			<OUTPUT> = if <TEMP_VAR3> > 0
-				then CFrame.fromAxisAngle(<TEMP_VAR2>, <TEMP_VAR3>) + <TEMP_VAR>
-				else CFrame.new(<TEMP_VAR>)]],
-		LuauType = "CFrame",
-	},
+	-- Value
+	local leafNode = {
+		Type = "Primitive",
+		DataName = value,
+		Data = {}
+	}
+	local rootNode = leafNode
 	
-	Color3 = {
-		StaticBytes = 3,
-		DynamicBytes = nil,
-		Write = [[buffer.writeu8(SendBuffer, SendPosition, math.round(<VALUE>.R * 255))
-			buffer.writeu8(SendBuffer, SendPosition+1, math.round(<VALUE>.G * 255))
-			buffer.writeu8(SendBuffer, SendPosition+2, math.round(<VALUE>.B * 255))]],
-		Read = [[<OUTPUT> = Color3.fromRGB(
-				buffer.readu8(ReceiveBuffer, ReceivePosition),
-				buffer.readu8(ReceiveBuffer, ReceivePosition+1),
-				buffer.readu8(ReceiveBuffer, ReceivePosition+2)
-			)]],
-		LuauType = "Color3",
-	},
-	BrickColor = {
-		StaticBytes = 2,
-		DynamicBytes = nil,
-		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>.Number)",
-		Read = "<OUTPUT> = BrickColor.new(buffer.readu16(ReceiveBuffer, ReceivePosition)",
-		LuauType = "BrickColor",
-	},
-} :: {[Primitive]: PrimitiveData}
-
-Common.MODIFIERS = {
-	Optional = {
-		StaticBytes = 1,
-		DynamicBytes = nil,
-		Write = [[buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)
-			if <VALUE> then
-				<WRITE_<VALUE>>
-			end]],
-		Read = [[<TEMP_VAR> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1
-			if <TEMP_VAR> then
-				<READ>
-				<OUTPUT> = <READ_OUT>
-			end]],
-		LuauType = "<VALUE_TYPE>?",
-	},
+	-- Array modifier
+	while self.Lexer:TryConsume("Array") do
+		rootNode = {
+			Type = "Modifier",
+			DataName = "Array",
+			Data = {rootNode}
+		}
+	end
 	
-	Array = {
-		StaticBytes = 2,
-		DynamicBytes = nil,
-		Write = [[<TEMP_VAR> = #<VALUE>
-			buffer.writeu16(SendBuffer, SendPosition, <TEMP_VAR>)
-			for <TEMP_VAR2> = 1, <TEMP_VAR> do
-				<TEMP_VAR3> = <VALUE>[<TEMP_VAR2>]
-				<WRITE_<TEMP_VAR3>>
-			end]],
-		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)
-			<OUTPUT> = table.create(<TEMP_VAR>) :: <SELF_TYPE>
-			for <TEMP_VAR2> = 1, <TEMP_VAR> do
-				<READ>
-				<OUTPUT>[<TEMP_VAR2>] = <READ_OUT>
-			end]],
-		LuauType = "{<VALUE_TYPE>}",
-	},
-} :: {[Modifier]: ModifierData}
+	-- Optional modifier
+	if self.Lexer:TryConsume("Optional") then
+		rootNode = {
+			Type = "Modifier",
+			DataName = "Optional",
+			Data = {rootNode}
+		}
+	end
+	
+	rootNode.Name = name or nil
+	
+	return rootNode
+end
 
-Common.KEYWORDS = {
-	event = true,
-} :: {[string]: true}
+function Parser:ParseStructure(body: Common.Structure): {[string]: any}
+	local struct = {}
+	
+	self.Lexer:Consume("OpenBraces")
+	
+	local function consumeLiteral(fieldName: string)
+		local keyData = body[fieldName]
+		local value = self.Lexer:Consume("Text")
+		assert(table.find(keyData.Values, value.Value), `Unexpected value {value.Value} for field {fieldName}!`)
+		return value.Value
+	end
+	
+	local function consumeValue(fieldName: string)
+		local keyData = body[fieldName]
+		local value = if keyData.ValueType == "Literal" then consumeLiteral(fieldName)
+			elseif keyData.ValueType == "Type" then self:ParseType()
+			else nil
+		assert(value, `Invalid value!`)
 
-return Common
+		if typeof(struct[fieldName]) == "table" then
+			table.insert(struct[fieldName], value)
+		else
+			struct[fieldName] = value
+		end
+	end
+	
+	while true do
+		if self.Lexer:TryConsume("CloseBraces") then
+			break
+		end
+		
+		local field = self.Lexer:Consume("Text")
+		assert(body[field.Value], `Unexpected field {field.Value}!`)
+		assert(not struct[field.Value], `Field {field.Value} is already assigned!`)
+		
+		self.Lexer:Consume("FieldAssign")
+		
+		local parentheses = self.Lexer:TryConsume("OpenParentheses")
+		local keyData = body[field.Value]
+		
+		-- Prepare the table for multiple values
+		if keyData.ContinueWhileCan then
+			struct[field.Value] = {}
+		end
+		
+		-- If there are no parentheses, expect only one value; loop otherwise
+		if keyData.ContinueWhileCan and parentheses then
+			-- Immediately check for close parentheses to allow 0 values
+			while not self.Lexer:TryConsume("CloseParentheses") do
+				consumeValue(field.Value)
+				
+				-- Don't require a comma if the next token is a close parentheses
+				if self.Lexer:TryConsume("CloseParentheses") then
+					break
+				end
+				
+				self.Lexer:Consume("Comma")
+			end
+			parentheses = false	-- Already closed
+		else
+			consumeValue(field.Value)
+		end
+		
+		if parentheses then
+			self.Lexer:Consume("CloseParentheses")
+		end
+		
+		-- Force comma at the end of the field assign unless it's the last field
+		if self.Lexer:TryConsume("CloseBraces") then
+			break
+		end
+		
+		self.Lexer:Consume("Comma")
+	end
+	
+	for key, keyData in body do
+		if not keyData.Optional and not struct[key] then
+			error(`Missing field {key}!`)
+		end
+	end
+	
+	return struct
+end
+
+function Parser:ParseEvent()
+	local nameToken = self.Lexer:Consume("Text")
+	self.Lexer:Consume("VariableAssign")
+	
+	local struct = self:ParseStructure(EVENT_STRUCT)
+	local event = {
+		Name = nameToken.Value,
+		From = struct["from"],
+		Data = {},
+	}
+	
+	if struct["data"] then
+		local valueNum = 1
+		for _, parsedData: Common.ParsedData in struct["data"] do
+			parsedData.Name = parsedData.Name or `value{valueNum}`
+			table.insert(event.Data, parsedData)
+			valueNum += 1
+		end
+	end
+	
+	if struct["from"] == "Server" then
+		event.ID = #self.Output.ServerEvents + 1
+		table.insert(self.Output.ServerEvents, event)
+	elseif struct["from"] == "Client" then
+		event.ID = #self.Output.ClientEvents + 1
+		table.insert(self.Output.ClientEvents, event)
+	end
+end
+
+function Parser:ParseSource()
+	while not self.Lexer:TryConsume("EndOfFile") do
+		local keyword = self.Lexer:Consume("Keyword")
+		if keyword.Value == "event" then
+			self:ParseEvent()
+		else
+			error(`Unknown keyword '{keyword.Value}'!`)
+		end
+	end
+end
+
+return table.freeze({
+	new = function(lexer: Common.Lexer): Common.Parser
+		local self = setmetatable({}, Parser) :: Common.Parser
+		
+		self.Lexer = lexer
+		self.Output = {
+			ServerEvents = {},
+			ClientEvents = {},
+		}
+		
+		return self
+	end,
+})
 ]]></ProtectedString>
-				<string name="ScriptGuid">{A905A8BC-F0A4-4C5A-8D72-FBC289ACD97C}</string>
+				<string name="ScriptGuid">{AF35E0A6-38B5-4318-8878-25C693FDC58F}</string>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 				<bool name="DefinesCapabilities">false</bool>
-				<string name="Name">Common</string>
+				<string name="Name">Parser</string>
+				<int64 name="SourceAssetId">-1</int64>
+				<BinaryString name="Tags"></BinaryString>
+			</Properties>
+		</Item>
+		<Item class="ModuleScript" referent="RBXDABE19B8F0734F59B375CDF2F555B1FD">
+			<Properties>
+				<Content name="LinkedSource"><null></null></Content>
+				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
+
+local NetTest = script.Parent
+local Common = require(NetTest.Common)
+
+-->> SETUP <<--
+
+local BOOLEANS = {
+	["true"] = true,
+	["false"] = true,
+}
+
+-- Save token patterns in order in which we should recognize them
+local TOKEN_PATTERNS: {Common.TokenPatternData} = {
+	-- Simple tokens first
+	[1] = {
+		Type = "Whitespace",
+		Pattern = "^%s+",
+	},
+	[2] = {
+		Type = "VariableAssign",
+		Pattern = "^=",
+	},
+	[3] = {
+		Type = "FieldAssign",
+		Pattern = "^:",
+	},
+	[4] = {
+		Type = "OpenParentheses",
+		Pattern = "^%(",
+	},
+	[5] = {
+		Type = "CloseParentheses",
+		Pattern = "^%)",
+	},
+	[6] = {
+		Type = "OpenBraces",
+		Pattern = "^%{",
+	},
+	[7] = {
+		Type = "CloseBraces",
+		Pattern = "^%}",
+	},
+	[8] = {
+		Type = "Comma",
+		Pattern = "^,",
+	},
+	[9] = {
+		Type = "Optional",
+		Pattern = "^%?",
+	},
+	[10] = {
+		Type = "Array",
+		Pattern = "^%[%]",
+	},
+	
+	-- Keywords go second
+	[11] = {
+		Type = "Keyword",
+		Pattern = "^%a+",
+		Validate = function(token: string): boolean
+			return Common.KEYWORDS[token]
+		end,
+	},
+	
+	-- Types go third
+	[12] = {
+		Type = "Primitive",
+		Pattern = "^%w+",
+		Validate = function(token: string): boolean
+			return Common.PRIMITIVES[token]
+		end,
+	},
+	[13] = {
+		Type = "Boolean",
+		Pattern = "^%a+",
+		Validate = function(token: string): boolean
+			return BOOLEANS[token]
+		end,
+	},
+	
+	-- Text (identifiers, ...) goes last
+	[14] = {
+		Type = "Text",
+		Pattern = "^[%a_][%w_]*",
+	},
+}
+
+local IGNORED_TYPES = {
+	["Whitespace"] = true,
+}
+
+-->> LEXER <<--
+
+local Lexer = {} :: Common.Lexer
+Lexer.__index = Lexer
+
+function Lexer:TryConsume(type: Common.TokenType): Common.Token?
+	local nextToken = self:GetNextToken(false)
+	if nextToken.Type == type then
+		-- Advance cursor and return token
+		self.Cursor = nextToken.End + 1
+		return nextToken
+	end
+end
+
+function Lexer:Consume(type: Common.TokenType): Common.Token
+	local nextToken = self:GetNextToken(true)
+	assert(nextToken.Type == type, `Expected token of type {type} got {nextToken.Type} instead!`)
+	return nextToken
+end
+
+function Lexer:ConsumeAny(...: Common.TokenType): Common.Token
+	local types = table.pack(...)
+	local nextToken = self:GetNextToken(true)
+	assert(table.find(types, nextToken.Type),
+		`Expected token of type ({table.concat(types, "|")}) got {nextToken.Type} instead!`
+	)
+	return nextToken
+end
+
+function Lexer:GetNextToken(advanceCursor: boolean): Common.Token
+	if self.Cursor > self.Size then
+		return {
+			Type = "EndOfFile",
+			Value = "",
+			Start = self.Size,
+			End = self.Size,
+		}
+	end
+	
+	for _, patternData in TOKEN_PATTERNS do
+		local startIndex, endIndex = string.find(self.Source, patternData.Pattern, self.Cursor)
+
+		-- Pattern did not match
+		if not startIndex or not endIndex then
+			continue
+		end
+
+		local text = string.sub(self.Source, startIndex, endIndex)
+
+		-- Validate token type if needed
+		if patternData.Validate and not patternData.Validate(text) then
+			continue
+		end
+		
+		-- Advance even if it's ignored with advanceCursor = false
+		if advanceCursor or IGNORED_TYPES[patternData.Type] then
+			self.Cursor = endIndex + 1
+		end
+		
+		-- Return the next token if the current one is ignored
+		if IGNORED_TYPES[patternData.Type] then
+			return self:GetNextToken(advanceCursor)
+		end
+		
+		return {
+			Type = patternData.Type,
+			Value = text,
+			Start = startIndex,
+			End = endIndex,
+		}
+	end
+	
+	-- Return unknown token
+	local symbol = string.sub(self.Source, self.Cursor, self.Cursor)
+	local unknownToken = {
+		Type = "Unknown",
+		Value = symbol,
+		Start = self.Cursor,
+		End = self.Cursor ,
+	}
+	
+	if advanceCursor then
+		self.Cursor += 1
+	end
+	
+	return unknownToken
+end
+
+return table.freeze({
+	new = function(source: string): Common.Lexer
+		local self = setmetatable({}, Lexer) :: Common.Lexer
+
+		self.Source = source
+		self.Size = #source
+		self.Cursor = 1
+
+		return self
+	end,
+})
+]]></ProtectedString>
+				<string name="ScriptGuid">{E5D2B158-44B1-4578-833A-FFDDE10D1D97}</string>
+				<BinaryString name="AttributesSerialize"></BinaryString>
+				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+				<bool name="DefinesCapabilities">false</bool>
+				<string name="Name">Lexer</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
@@ -954,10 +969,17 @@ end
 
 GeneratorStatic.GenerateEventConnect = function(event: Common.Event): string
 	local initialWriteData = PrepareWriteData(event)
+	local arguments = initialWriteData.Arguments
+	
+	if event.From == "Client" and #arguments > 0 then
+		arguments = `player: Player, {arguments}`
+	elseif event.From == "Client" then
+		arguments = "player: Player"
+	end
 	
 	local lines = {
 		`	{event.Name} = \{`,
-		`		Connect = function(connectedFunction: ({initialWriteData.Arguments}) -> ()): () -> ()`,
+		`		Connect = function(connectedFunction: ({arguments}) -> ()): () -> ()`,
 		`			table.insert(EventCallbacks[{event.ID}], connectedFunction)`,
 		`			return function()`,
 		`				table.remove(EventCallbacks[{event.ID}], table.find(EventCallbacks[{event.ID}], connectedFunction))`,
@@ -1403,426 +1425,411 @@ ReliableEvent.OnServerEvent:Connect(EventReceived)]]
 				</Properties>
 			</Item>
 		</Item>
-		<Item class="ModuleScript" referent="RBXDABE19B8F0734F59B375CDF2F555B1FD">
+		<Item class="ModuleScript" referent="RBX56903D8B22564874AA81E664CBF5A6CD">
 			<Properties>
 				<Content name="LinkedSource"><null></null></Content>
-				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
+				<ProtectedString name="Source"><![CDATA[-->> TOKEN TYPES <<--
 
-local NetTest = script.Parent
-local Common = require(NetTest.Common)
+export type TokenType = "Whitespace"
+	| "VariableAssign"
+	| "FieldAssign"
+	| "OpenParentheses"
+	| "CloseParentheses"
+	| "OpenBraces"
+	| "CloseBraces"
+	| "Comma"
+	| "Optional"
+	| "Array"
+	| "Keyword"
+	| "Primitive"
+	| "Boolean"
+	| "Text"
+	| "EndOfFile"
+	| "Unknown"
 
--->> SETUP <<--
+export type Primitive = "u8" | "u16" | "u32"
+	| "i8" | "i16" | "i32"
+	| "f32" | "f64"
+	| "string" | "buffer" | "boolean"
+	| "Vector2" | "Vector3" | "CFrame"
+	| "Color3" | "BrickColor"
 
-local BOOLEANS = {
-	["true"] = true,
-	["false"] = true,
+export type Modifier = "Optional" | "Array"
+
+export type Token = {
+	Type: TokenType,
+	Value: string,
+	Start: number,
+	End: number,
 }
 
--- Save token patterns in order in which we should recognize them
-local TOKEN_PATTERNS: {Common.TokenPatternData} = {
-	-- Simple tokens first
-	[1] = {
-		Type = "Whitespace",
-		Pattern = "^%s+",
-	},
-	[2] = {
-		Type = "VariableAssign",
-		Pattern = "^=",
-	},
-	[3] = {
-		Type = "FieldAssign",
-		Pattern = "^:",
-	},
-	[4] = {
-		Type = "OpenParentheses",
-		Pattern = "^%(",
-	},
-	[5] = {
-		Type = "CloseParentheses",
-		Pattern = "^%)",
-	},
-	[6] = {
-		Type = "OpenBraces",
-		Pattern = "^%{",
-	},
-	[7] = {
-		Type = "CloseBraces",
-		Pattern = "^%}",
-	},
-	[8] = {
-		Type = "Comma",
-		Pattern = "^,",
-	},
-	[9] = {
-		Type = "Optional",
-		Pattern = "^%?",
-	},
-	[10] = {
-		Type = "Array",
-		Pattern = "^%[%]",
-	},
-	
-	-- Keywords go second
-	[11] = {
-		Type = "Keyword",
-		Pattern = "^%a+",
-		Validate = function(token: string): boolean
-			return Common.KEYWORDS[token]
-		end,
-	},
-	
-	-- Types go third
-	[12] = {
-		Type = "Primitive",
-		Pattern = "^%w+",
-		Validate = function(token: string): boolean
-			return Common.PRIMITIVES[token]
-		end,
-	},
-	[13] = {
-		Type = "Boolean",
-		Pattern = "^%a+",
-		Validate = function(token: string): boolean
-			return BOOLEANS[token]
-		end,
-	},
-	
-	-- Text (identifiers, ...) goes last
-	[14] = {
-		Type = "Text",
-		Pattern = "^[%a_][%w_]*",
-	},
+export type TokenPatternData = {
+	Type: TokenType,
+	Pattern: string,
+	Validate: ((token: string) -> boolean)?,	-- If Validate function is provided, it checks whether the token is 
+	-- actually of the type or if it is just a pattern coincidence
 }
 
-local IGNORED_TYPES = {
-	["Whitespace"] = true,
+export type Lexer = {
+	-- Members:
+	Source: string,
+	Size: number,
+	Cursor: number,
+
+	-- Methods:
+	TryConsume: (self: Lexer, type: TokenType) -> Token?,
+	Consume: (self: Lexer, type: TokenType) -> Token,
+	ConsumeAny: (self: Lexer, ...TokenType) -> Token,
+	GetNextToken: (self: Lexer, advanceCursor: boolean) -> Token,
 }
 
--->> LEXER <<--
+-->> PARSER TYPES <<--
 
-local Lexer = {} :: Common.Lexer
-Lexer.__index = Lexer
+export type StructureKey = {
+	ValueType: "Literal" | "Type",
+	Values: {any},
+	Optional: boolean,
+	ContinueWhileCan: boolean,
+}
 
-function Lexer:TryConsume(type: Common.TokenType): Common.Token?
-	local nextToken = self:GetNextToken(false)
-	if nextToken.Type == type then
-		-- Advance cursor and return token
-		self.Cursor = nextToken.End + 1
-		return nextToken
-	end
-end
+export type Structure = {[string]: StructureKey}
 
-function Lexer:Consume(type: Common.TokenType): Common.Token
-	local nextToken = self:GetNextToken(true)
-	assert(nextToken.Type == type, `Expected token of type {type} got {nextToken.Type} instead!`)
-	return nextToken
-end
+export type BytesData = {
+	Static: number,
+	Dynamic: {string},
+}
 
-function Lexer:ConsumeAny(...: Common.TokenType): Common.Token
-	local types = table.pack(...)
-	local nextToken = self:GetNextToken(true)
-	assert(table.find(types, nextToken.Type),
-		`Expected token of type ({table.concat(types, "|")}) got {nextToken.Type} instead!`
-	)
-	return nextToken
-end
+export type PrimitiveData = {
+	StaticBytes: number,
+	DynamicBytes: string,
+	Write: string,
+	Read: string,
+	LuauType: string,
+}
 
-function Lexer:GetNextToken(advanceCursor: boolean): Common.Token
-	if self.Cursor > self.Size then
-		return {
-			Type = "EndOfFile",
-			Value = "",
-			Start = self.Size,
-			End = self.Size,
-		}
-	end
+export type ModifierData = PrimitiveData
+
+export type ParsedData = {
+	Type: "Primitive" | "Modifier",
+	Name: string?,
+	DataName: Primitive | Modifier,
+	Data: {ParsedData},
+}
+
+export type Event = {
+	Name: string,
+	ID: number,
+	From: "Server" | "Client",
+	Data: {ParsedData},
+}
+
+export type ParsedSource = {
+	ClientEvents: {Event},
+	ServerEvents: {Event},
+}
+
+export type Parser = {
+	-- Members:
+	Lexer: Lexer,
+	Output: ParsedSource,
+
+	-- Public methods:
+	ParseType: (self: Parser) -> ParsedData,
+	ParseStructure: (self: Parser, body: Structure) -> {[string]: any},
+	ParseEvent: (self: Parser) -> (),
+	ParseSource: (self: Parser) -> (),
+}
+
+-->> GENERATOR TYPES <<--
+
+export type TemplateTags = "<COMPONENT>" | "<EVENT_DEFINITIONS>"			-- Shared
+	| "<EVENT_CALLBACKS>" | "<BREAK>" | "<EVENTS_WRITE>" | "<EVENTS_READ>"	-- Server & Client
+
+export type GeneratorTags = "<OUTPUT>" | "<TEMP_VAR>" | "<TEMP_VARn>"
+	| "<VALUE>" | "<WRITE_ABC>" | "<READ>" | "<READn>" | "<READ_OUT>"
+	| "<VALUE_TYPE>" | "<VALUE_TYPEn>" | "<SELF_TYPE>"
+
+export type EventGeneratedData = {
+	From: "Server" | "Client",
+	Write: string,
+	Read: string,
+	Connect: string,
+	Fire: string,
+	Callback: string,
+}
+
+export type ProcessedEventsOneSide = {
+	Definitions: string,
+	Callbacks: string,
+	Write: string,
+	Read: string,
+}
+
+export type ProcessedEvents = {
+	Server: ProcessedEventsOneSide,
+	Client: ProcessedEventsOneSide,
+}
+
+export type Generator = {
+	-- Members:
+	ParsedSource: ParsedSource,
+	ServerOutput: string?,
+	ClientOutput: string?,
+
+	-- Methods:
+	GenerateAllEvents: (self: Generator) -> (),
+}
+
+export type GeneratorStatic = {
+	new: (parsedSource: ParsedSource) -> Generator,
+	GenerateEventWrite: (event: Event) -> string,
+	GenerateEventRead: (event: Event) -> string,
+	GenerateEventConnect: (event: Event) -> string,
+	GenerateEventFireFromServer: (event: Event) -> string,
+	GenerateEventFireFromClient: (event: Event) -> string,
+	GenerateEventCallback: (event: Event) -> string,
+	GenerateEvent: (event: Event) -> EventGeneratedData,
+	ProcessEvents: (events: {EventGeneratedData}) -> ProcessedEvents
+}
+
+-->> MODULE <<--
+
+local Common = {}
+
+Common.PRIMITIVES = {
+	u8 = {
+		--Range = NumberRange.new(0, 255),
+		--Integer = true,
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	u16 = {
+		--Range = NumberRange.new(0, 65535),
+		--Integer = true,
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	u32 = {
+		--Range = NumberRange.new(0, 4294967295),
+		--Integer = true,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writeu32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readu32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+
+	i8 = {
+		--Range = NumberRange.new(-128, 127),
+		--Integer = true,
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writei8(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi8(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	i16 = {
+		--Range = NumberRange.new(-32768, 32767),
+		--Integer = true,
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writei16(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	i32 = {
+		--Range = NumberRange.new(-2147483648, 2147483647),
+		--Integer = true,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writei32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readi32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
 	
-	for _, patternData in TOKEN_PATTERNS do
-		local startIndex, endIndex = string.find(self.Source, patternData.Pattern, self.Cursor)
+	f32 = {
+		--Range = NumberRange.new(-16777216, 16777216),
+		--Integer = false,
+		StaticBytes = 4,
+		DynamicBytes = nil,
+		Write = "buffer.writef32(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readf32(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
+	f64 = {
+		--Range = NumberRange.new(-2 ^ 53, 2 ^ 53),
+		--Integer = false,
+		StaticBytes = 8,
+		DynamicBytes = nil,
+		Write = "buffer.writef64(SendBuffer, SendPosition, <VALUE>)",
+		Read = "<OUTPUT> = buffer.readf64(ReceiveBuffer, ReceivePosition)",
+		LuauType = "number",
+	},
 
-		-- Pattern did not match
-		if not startIndex or not endIndex then
-			continue
-		end
+	string = {
+		-- Range = NumberRange.new(0, 65535),
+		StaticBytes = 2,
+		DynamicBytes = "#<VALUE>",
+		Write = [[buffer.writeu16(SendBuffer, SendPosition, #<VALUE>)		-- Length
+			buffer.writestring(SendBuffer, SendPosition+2, <VALUE>)]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
+			Read(<TEMP_VAR>)
+			<OUTPUT> = buffer.readstring(ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
+		LuauType = "string",
+	},
+	buffer = {
+		--Range = NumberRange.new(0, 65535)
+		StaticBytes = 2,
+		DynamicBytes = "buffer.len(<VALUE>)",
+		Write = [[buffer.writeu16(SendBuffer, SendPosition, buffer.len(<VALUE>))		-- Length
+			buffer.copy(ReceiveBuffer, SendPosition+2, <VALUE>)]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)		-- Length
+			Read(<TEMP_VAR>)
+			<OUTPUT> = buffer.create(<TEMP_VAR>)
+			buffer.copy(<OUTPUT>, 0, ReceiveBuffer, ReceivePosition, <TEMP_VAR>)]],
+		LuauType = "buffer",
+	},
 
-		local text = string.sub(self.Source, startIndex, endIndex)
-
-		-- Validate token type if needed
-		if patternData.Validate and not patternData.Validate(text) then
-			continue
-		end
-		
-		-- Advance even if it's ignored with advanceCursor = false
-		if advanceCursor or IGNORED_TYPES[patternData.Type] then
-			self.Cursor = endIndex + 1
-		end
-		
-		-- Return the next token if the current one is ignored
-		if IGNORED_TYPES[patternData.Type] then
-			return self:GetNextToken(advanceCursor)
-		end
-		
-		return {
-			Type = patternData.Type,
-			Value = text,
-			Start = startIndex,
-			End = endIndex,
-		}
-	end
+	boolean = {
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = "buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)",
+		Read = "<OUTPUT> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1",
+		LuauType = "boolean",
+	},
 	
-	-- Return unknown token
-	local symbol = string.sub(self.Source, self.Cursor, self.Cursor)
-	local unknownToken = {
-		Type = "Unknown",
-		Value = symbol,
-		Start = self.Cursor,
-		End = self.Cursor ,
-	}
+	Vector2 = {
+		StaticBytes = 8,
+		DynamicBytes = nil,
+		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)]],
+		Read = [[<OUTPUT> = Vector2.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4)
+			)]],
+		LuauType = "Vector2",
+	},
+	Vector3 = {
+		StaticBytes = 12,
+		DynamicBytes = nil,
+		Write = [[buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
+			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)]],
+		Read = [[<OUTPUT> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
+			)]],
+		LuauType = "Vector3",
+	},
+	CFrame = {
+		StaticBytes = 24,
+		DynamicBytes = nil,
+		Write = [[-- Position
+			buffer.writef32(SendBuffer, SendPosition, <VALUE>.X)
+			buffer.writef32(SendBuffer, SendPosition+4, <VALUE>.Y)
+			buffer.writef32(SendBuffer, SendPosition+8, <VALUE>.Z)
+			
+			-- AxisAngle (faster than euler angles)
+			<TEMP_VAR>, <TEMP_VAR2> = <VALUE>:ToAxisAngle()
+			<TEMP_VAR> = <TEMP_VAR> * <TEMP_VAR2>	-- Save space by incorporating theta as the magnitude
+			buffer.writef32(SendBuffer, SendPosition+12, <TEMP_VAR>.X)
+			buffer.writef32(SendBuffer, SendPosition+16, <TEMP_VAR>.Y)
+			buffer.writef32(SendBuffer, SendPosition+20, <TEMP_VAR>.Z)]],
+		Read = [[-- Position
+			<TEMP_VAR> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+4),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+8)
+			)
+			
+			-- AxisAngle
+			<TEMP_VAR2> = Vector3.new(
+				buffer.readf32(ReceiveBuffer, ReceivePosition+12),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+16),
+				buffer.readf32(ReceiveBuffer, ReceivePosition+20)
+			)
+			<TEMP_VAR3> = <TEMP_VAR2>.Magnitude
+			<OUTPUT> = if <TEMP_VAR3> > 0
+				then CFrame.fromAxisAngle(<TEMP_VAR2>, <TEMP_VAR3>) + <TEMP_VAR>
+				else CFrame.new(<TEMP_VAR>)]],
+		LuauType = "CFrame",
+	},
 	
-	if advanceCursor then
-		self.Cursor += 1
-	end
+	Color3 = {
+		StaticBytes = 3,
+		DynamicBytes = nil,
+		Write = [[buffer.writeu8(SendBuffer, SendPosition, math.round(<VALUE>.R * 255))
+			buffer.writeu8(SendBuffer, SendPosition+1, math.round(<VALUE>.G * 255))
+			buffer.writeu8(SendBuffer, SendPosition+2, math.round(<VALUE>.B * 255))]],
+		Read = [[<OUTPUT> = Color3.fromRGB(
+				buffer.readu8(ReceiveBuffer, ReceivePosition),
+				buffer.readu8(ReceiveBuffer, ReceivePosition+1),
+				buffer.readu8(ReceiveBuffer, ReceivePosition+2)
+			)]],
+		LuauType = "Color3",
+	},
+	BrickColor = {
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = "buffer.writeu16(SendBuffer, SendPosition, <VALUE>.Number)",
+		Read = "<OUTPUT> = BrickColor.new(buffer.readu16(ReceiveBuffer, ReceivePosition)",
+		LuauType = "BrickColor",
+	},
+} :: {[Primitive]: PrimitiveData}
+
+Common.MODIFIERS = {
+	Optional = {
+		StaticBytes = 1,
+		DynamicBytes = nil,
+		Write = [[buffer.writeu8(SendBuffer, SendPosition, <VALUE> and 1 or 0)
+			if <VALUE> then
+				<WRITE_<VALUE>>
+			end]],
+		Read = [[<TEMP_VAR> = buffer.readu8(ReceiveBuffer, ReceivePosition) == 1
+			if <TEMP_VAR> then
+				<READ>
+				<OUTPUT> = <READ_OUT>
+			end]],
+		LuauType = "<VALUE_TYPE>?",
+	},
 	
-	return unknownToken
-end
+	Array = {
+		StaticBytes = 2,
+		DynamicBytes = nil,
+		Write = [[<TEMP_VAR> = #<VALUE>
+			buffer.writeu16(SendBuffer, SendPosition, <TEMP_VAR>)
+			for <TEMP_VAR2> = 1, <TEMP_VAR> do
+				<TEMP_VAR3> = <VALUE>[<TEMP_VAR2>]
+				<WRITE_<TEMP_VAR3>>
+			end]],
+		Read = [[<TEMP_VAR> = buffer.readu16(ReceiveBuffer, ReceivePosition)
+			<OUTPUT> = table.create(<TEMP_VAR>) :: <SELF_TYPE>
+			for <TEMP_VAR2> = 1, <TEMP_VAR> do
+				<READ>
+				<OUTPUT>[<TEMP_VAR2>] = <READ_OUT>
+			end]],
+		LuauType = "{<VALUE_TYPE>}",
+	},
+} :: {[Modifier]: ModifierData}
 
-return table.freeze({
-	new = function(source: string): Common.Lexer
-		local self = setmetatable({}, Lexer) :: Common.Lexer
+Common.KEYWORDS = {
+	event = true,
+} :: {[string]: true}
 
-		self.Source = source
-		self.Size = #source
-		self.Cursor = 1
-
-		return self
-	end,
-})
+return Common
 ]]></ProtectedString>
-				<string name="ScriptGuid">{E5D2B158-44B1-4578-833A-FFDDE10D1D97}</string>
+				<string name="ScriptGuid">{A905A8BC-F0A4-4C5A-8D72-FBC289ACD97C}</string>
 				<BinaryString name="AttributesSerialize"></BinaryString>
 				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
 				<bool name="DefinesCapabilities">false</bool>
-				<string name="Name">Lexer</string>
-				<int64 name="SourceAssetId">-1</int64>
-				<BinaryString name="Tags"></BinaryString>
-			</Properties>
-		</Item>
-		<Item class="ModuleScript" referent="RBX2A1CFFF7009748C4BE53234B4ACDB5DA">
-			<Properties>
-				<Content name="LinkedSource"><null></null></Content>
-				<ProtectedString name="Source"><![CDATA[-->> PRIVATE VARIABLES <<--
-
-local NetTest = script.Parent
-local Common = require(NetTest.Common)
-
--->> STRUCTURE DEFINITIONS <<--
-
-local EVENT_STRUCT: Common.Structure = {
-	from = {
-		ValueType = "Literal",
-		Values = {"Server", "Client"},
-		Optional = false,
-		ContinueWhileCan = false,
-	},
-	data = {
-		ValueType = "Type",
-		Values = {},
-		Optional = true,
-		ContinueWhileCan = true,
-	},
-}
-
--->> PARSER <<--
-
-local Parser = {} :: Common.Parser
-Parser.__index = Parser
-
-function Parser:ParseType(): Common.ParsedData
-	local firstToken = self.Lexer:ConsumeAny("Primitive", "Text")
-	local name, value
-	
-	if firstToken.Type == "Text" then
-		name = firstToken.Value
-		self.Lexer:Consume("FieldAssign")
-		value = self.Lexer:Consume("Primitive").Value
-	else
-		value = firstToken.Value
-	end
-	
-	-- Value
-	local leafNode = {
-		Type = "Primitive",
-		DataName = value,
-		Data = {}
-	}
-	local rootNode = leafNode
-	
-	-- Array modifier
-	while self.Lexer:TryConsume("Array") do
-		rootNode = {
-			Type = "Modifier",
-			DataName = "Array",
-			Data = {rootNode}
-		}
-	end
-	
-	-- Optional modifier
-	if self.Lexer:TryConsume("Optional") then
-		rootNode = {
-			Type = "Modifier",
-			DataName = "Optional",
-			Data = {rootNode}
-		}
-	end
-	
-	rootNode.Name = name or nil
-	
-	return rootNode
-end
-
-function Parser:ParseStructure(body: Common.Structure): {[string]: any}
-	local struct = {}
-	
-	self.Lexer:Consume("OpenBraces")
-	
-	local function consumeLiteral(fieldName: string)
-		local keyData = body[fieldName]
-		local value = self.Lexer:Consume("Text")
-		assert(table.find(keyData.Values, value.Value), `Unexpected value {value.Value} for field {fieldName}!`)
-		return value.Value
-	end
-	
-	local function consumeValue(fieldName: string)
-		local keyData = body[fieldName]
-		local value = if keyData.ValueType == "Literal" then consumeLiteral(fieldName)
-			elseif keyData.ValueType == "Type" then self:ParseType()
-			else nil
-		assert(value, `Invalid value!`)
-
-		if typeof(struct[fieldName]) == "table" then
-			table.insert(struct[fieldName], value)
-		else
-			struct[fieldName] = value
-		end
-	end
-	
-	while true do
-		if self.Lexer:TryConsume("CloseBraces") then
-			break
-		end
-		
-		local field = self.Lexer:Consume("Text")
-		assert(body[field.Value], `Unexpected field {field.Value}!`)
-		assert(not struct[field.Value], `Field {field.Value} is already assigned!`)
-		
-		self.Lexer:Consume("FieldAssign")
-		
-		local parentheses = self.Lexer:TryConsume("OpenParentheses")
-		local keyData = body[field.Value]
-		
-		-- Prepare the table for multiple values
-		if keyData.ContinueWhileCan then
-			struct[field.Value] = {}
-		end
-		
-		-- If there are no parentheses, expect only one value; loop otherwise
-		if keyData.ContinueWhileCan and parentheses then
-			-- Immediately check for close parentheses to allow 0 values
-			while not self.Lexer:TryConsume("CloseParentheses") do
-				consumeValue(field.Value)
-				
-				-- Don't require a comma if the next token is a close parentheses
-				if self.Lexer:TryConsume("CloseParentheses") then
-					break
-				end
-				
-				self.Lexer:Consume("Comma")
-			end
-			parentheses = false	-- Already closed
-		else
-			consumeValue(field.Value)
-		end
-		
-		if parentheses then
-			self.Lexer:Consume("CloseParentheses")
-		end
-		
-		-- Force comma at the end of the field assign unless it's the last field
-		if self.Lexer:TryConsume("CloseBraces") then
-			break
-		end
-		
-		self.Lexer:Consume("Comma")
-	end
-	
-	for key, keyData in body do
-		if not keyData.Optional and not struct[key] then
-			error(`Missing field {key}!`)
-		end
-	end
-	
-	return struct
-end
-
-function Parser:ParseEvent()
-	local nameToken = self.Lexer:Consume("Text")
-	self.Lexer:Consume("VariableAssign")
-	
-	local struct = self:ParseStructure(EVENT_STRUCT)
-	local event = {
-		Name = nameToken.Value,
-		From = struct["from"],
-		Data = {},
-	}
-	
-	if struct["data"] then
-		local valueNum = 1
-		for _, parsedData: Common.ParsedData in struct["data"] do
-			parsedData.Name = parsedData.Name or `value{valueNum}`
-			table.insert(event.Data, parsedData)
-			valueNum += 1
-		end
-	end
-	
-	if struct["from"] == "Server" then
-		event.ID = #self.Output.ServerEvents + 1
-		table.insert(self.Output.ServerEvents, event)
-	elseif struct["from"] == "Client" then
-		event.ID = #self.Output.ClientEvents + 1
-		table.insert(self.Output.ClientEvents, event)
-	end
-end
-
-function Parser:ParseSource()
-	while not self.Lexer:TryConsume("EndOfFile") do
-		local keyword = self.Lexer:Consume("Keyword")
-		if keyword.Value == "event" then
-			self:ParseEvent()
-		else
-			error(`Unknown keyword '{keyword.Value}'!`)
-		end
-	end
-end
-
-return table.freeze({
-	new = function(lexer: Common.Lexer): Common.Parser
-		local self = setmetatable({}, Parser) :: Common.Parser
-		
-		self.Lexer = lexer
-		self.Output = {
-			ServerEvents = {},
-			ClientEvents = {},
-		}
-		
-		return self
-	end,
-})
-]]></ProtectedString>
-				<string name="ScriptGuid">{AF35E0A6-38B5-4318-8878-25C693FDC58F}</string>
-				<BinaryString name="AttributesSerialize"></BinaryString>
-				<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-				<bool name="DefinesCapabilities">false</bool>
-				<string name="Name">Parser</string>
+				<string name="Name">Common</string>
 				<int64 name="SourceAssetId">-1</int64>
 				<BinaryString name="Tags"></BinaryString>
 			</Properties>
